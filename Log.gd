@@ -66,12 +66,13 @@ func throw_assert(message: String):
 func error(message: String, dump_error := true):
 	# Add to the global error count. (useful for unit testing errors)
 	Print.error_count += 1
+	var message_formatted = "[color=red]ERROR:   " + message + "[/color]"
 	# Store this message in case we need it again!
 	if archive_level >= LogLevel.ERROR:
-		message_history += "\n[color=red]ERROR:   " + message + "[/color]"
+		message_history += '\n' + message_formatted
 	# Print this message to the screen and console.
 	if print_level >= LogLevel.ERROR:
-		_print_console(message)
+		_print_console(message_formatted)
 		push_error(message)
 		if dump_error:
 			_error_dump()
@@ -81,16 +82,17 @@ func error(message: String, dump_error := true):
 func warning(message):
 	# Add to the global warning count. (useful for unit testing warnings)
 	Print.warning_count += 1
+	var message_formatted = "[color=orange]WARNING: " + message + "[/color]" 
 	# Archive this message if necessary.
 	if archive_level >= LogLevel.WARNING:
-		message_history += "\n[color=orange]WARNING: " + message + "[/color]"
+		message_history += '\n' + message_formatted
 	# Print this message to the screen and console.
 	if print_level >= LogLevel.WARNING:
-		_print_console(message)
+		_print_console(message_formatted)
 		push_warning(message)
 		# Print the warning to Output as well as pusing to Debugger. This way, it won't get missed!
 		if OS.has_feature("editor"):
-			print_rich("[color=orange]WARNING: " + message + "[/color]")
+			print_rich(message_formatted)
 
 
 # Prints an info message to screen and console.
