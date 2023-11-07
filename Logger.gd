@@ -1,4 +1,4 @@
-extends Node
+class_name Logger extends Node
 # An individual logger for a module or individual object.
 # Can print to the standard output (print()) and to the in-game console.
 # Prints can be turned on or off by setting set_print_level.
@@ -8,7 +8,6 @@ extends Node
 # the entire buffer will be printed. You can call start() to clear the buffer.
 #
 # Additionally, creates a log of all prints 
-class_name Log
 
 enum LogLevel {
 	SILENT = 0,
@@ -19,27 +18,46 @@ enum LogLevel {
 	VERBOSE = 5
 }
 
-var id : int
-var print_level : LogLevel = LogLevel.SILENT
-var archive_level : LogLevel = LogLevel.DEBUG
+enum LogType {
+	SINGLETON,
+	OBJECT,
+	UNKNOWN
+}
+
+## Custom ID that appears in logs for this module. Must be unique, registration will
+## fail if there are multiple loggers with the same name.
+## If left blank, will be set based on the parent's path in the scene tree.
+@export var id := ""
+@export var print_level : LogLevel = LogLevel.SILENT
+@export var archive_level : LogLevel = LogLevel.DEBUG
+var log_type : LogType = LogType.OBJECT
 var console = null
 var message_history := ""
 
 
-func _init(name : String, id : int, level : LogLevel = LogLevel.SILENT, print_console = null):
-	self.name = name
+## Set up everything that we can't do in an _init call (because Godot calls _init on nodes in the scene tree.
+## Returns self so you can chain Logger.new.init(...)
+func second_init(id := "", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE, log_type := LogType.OBJECT) -> Logger:
 	self.id = id
-	self.print_level = level
+	self.print_level = print_level
+	self.archive_level = archive_level
+	self.log_type = log_type
+	return self
 
-	if print_console:
-		console = print_console
+
+## Register with the Print singleton when ready.
+## If this logger is a child of an existing node, will 
+func _ready():
+	if id == "":
+		id = str(get_parent().get_path()).replace("/root/", "")
+	Print.register_logger(self)
 	start()
 
 
-# Clears the message history for this logger instance.
-# This effectively lets you start a new task. If an error is thrown,
-# the entire message history will be printed, starting from this call.
-# You can optionally provide a message to print (default level is DEBUG).
+## Clears the message history for this logger instance.
+## This effectively lets you start a new task. If an error is thrown,
+## the entire message history will be printed, starting from this call.
+## You can optionally provide a message to print (default level is DEBUG).
 func start(message := "", level = LogLevel.DEBUG):
 	message_history = ""
 	if message != "":
@@ -60,9 +78,9 @@ func throw_assert(message: String):
 		assert(false)
 
 
-# Prints an error to screen and pushes to console.
-# By default, this will dump the entire message history to the console.
-# If you just want to print the current error, set dump_error to false.
+## Prints an error to screen and pushes to console.
+## By default, this will dump the entire message history to the console.
+## If you just want to print the current error, set dump_error to false.
 func error(message: String, dump_error := true):
 	# Add to the global error count. (useful for unit testing errors)
 	Print.error_count += 1
@@ -78,7 +96,7 @@ func error(message: String, dump_error := true):
 			_error_dump()
 
 
-# Prints a warning to screen and pushes to console.
+## Prints a warning to screen and pushes to console.
 func warning(message):
 	# Add to the global warning count. (useful for unit testing warnings)
 	Print.warning_count += 1
@@ -95,7 +113,7 @@ func warning(message):
 			print_rich(message_formatted)
 
 
-# Prints an info message to screen and console.
+## Prints an info message to screen and console.
 func info(message):
 	message = "[color=cyan]INFO:    [/color]" + message
 	# Archive this message if necessary.
@@ -107,7 +125,7 @@ func info(message):
 		print_rich(message)
 
 
-# Prints a debug message to screen and console.
+## Prints a debug message to screen and console.
 func debug(message):
 	message = "[color=green]DEBUG:   [/color]" + message
 	# Archive this message if necessary.
@@ -119,8 +137,8 @@ func debug(message):
 		print_rich(message)
 
 
-# Prints a verbose message to screen and console.
-# Uses print_verbose, so it will only display if (OS.is_stdout_verbose() returns true)
+## Prints a verbose message to screen and console.
+## Uses print_verbose, so it will only display if (OS.is_stdout_verbose() returns true)
 func verbose(message):
 	message = "[color=purple]VERBOSE: [/color]" + message
 	# Archive this message if necessary.
@@ -132,14 +150,17 @@ func verbose(message):
 		print_rich(message)
 
 
+## Set the minimum level for prints to be sent to the screen and console.
 func set_print_level(level: LogLevel):
 	print_level = level
 
 
+## Set the minimum level for prints to be saved to the message history.
 func set_archive_level(level: LogLevel):
 	archive_level = level
 
 
+## Prints a message at a specific level. Equivalent to calling error, info, etc.
 func print_at_level(message: String, level: LogLevel):
 	match level:
 		LogLevel.ERROR:
@@ -158,11 +179,18 @@ func print_at_level(message: String, level: LogLevel):
 			error("Attempted to print at an invalid logging level.")
 
 
+## Unregister before deletion.
+func _exit_tree():
+	Print.unregister_logger(self)
+
+
+## Prints the entire message history.
 func _error_dump():
 	print_rich("[b][color=magenta]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [name] + \
 			message_history + "\n[b][color=magenta]-=-=- Error Encountered! %s Module History Ends Here   -=-=-[/color][/b]" % [name])
 
 
+## Print to the in-game console (if it exists)
 func _print_console(message: String):
 	if console:
 		console.Text.append_text(message + "\n")
