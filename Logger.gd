@@ -46,7 +46,7 @@ func second_init(id := "", print_level := LogLevel.VERBOSE, archive_level := Log
 
 
 ## Register with the Print singleton when ready.
-## If this logger is a child of an existing node, will 
+## If this logger is a child of an existing node, will update the ID accordingly.
 func _ready():
 	if id == "":
 		id = str(get_parent().get_path()).replace("/root/", "")
