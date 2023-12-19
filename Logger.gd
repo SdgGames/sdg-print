@@ -39,6 +39,7 @@ var message_history := ""
 ## Returns self so you can chain Logger.new.init(...)
 func second_init(id := "", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE, log_type := LogType.OBJECT) -> Logger:
 	self.id = id
+	self.name = str(id)
 	self.print_level = print_level
 	self.archive_level = archive_level
 	self.log_type = log_type
