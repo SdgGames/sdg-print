@@ -21,7 +21,7 @@ enum {
 }
 
 
-func _ready():
+func _init():
 	_print_logger = Logger.new().second_init("Print", self_print_level, self_archive_level, Logger.LogType.SINGLETON)
 	add_child(_print_logger)
 	_global_logger = get_or_create_logger("Global", VERBOSE, VERBOSE)
