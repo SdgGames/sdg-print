@@ -24,7 +24,7 @@ enum {
 func _init():
 	_print_logger = Logger.new().second_init("Print", self_print_level, self_archive_level, Logger.LogType.SINGLETON)
 	add_child(_print_logger)
-	_global_logger = get_or_create_logger("Global", VERBOSE, VERBOSE)
+	_global_logger = create_logger("Global", VERBOSE, VERBOSE)
 
 
 ## Method to register a logger.
@@ -49,13 +49,13 @@ func unregister_logger(logger: Logger):
 		_print_logger.error("A logger with the identifier '%s' is not registered." % logger.id)
 
 
-## Returns the logger instance for the selected module. Creates it if it doesn't exist.
+## Creates and returns the logger instance for the selected module.
 ## Will always overwrite the logger's print_level and archive_level with the
 ## provided values. If you need to reference the logger before it is created
 ## (such as during _ready calls in scene creation), you can safely call
 ## get_logger(id, true) to generate the logger object. The object will default to VERBOSE,
-## but will have its levels updated when get_or_create_logger is finally called.
-func get_or_create_logger(identifier, print_level, archive_level) -> Logger:
+## but will have its levels updated when create_logger is finally called.
+func create_logger(identifier, print_level, archive_level) -> Logger:
 	var id = _get_id(identifier)
 	if id in _logs:
 		_print_logger.debug("get_or_create_logger found existing logger %s." % id)
@@ -82,7 +82,7 @@ func get_logger(identifier, get_or_create := false) -> Logger:
 		_print_logger.verbose("get_logger found existing logger %s." % id)
 		return _logs[id]
 	elif get_or_create:
-		return get_or_create_logger(identifier, VERBOSE, VERBOSE)
+		return create_logger(identifier, VERBOSE, VERBOSE)
 	else:
 		_print_logger.throw_assert("No logger exists with name %s." % id)
 		return null
