@@ -187,8 +187,8 @@ func _exit_tree():
 
 ## Prints the entire message history.
 func _error_dump():
-	print_rich("[b][color=magenta]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [name] + \
-			message_history + "\n[b][color=magenta]-=-=- Error Encountered! %s Module History Ends Here   -=-=-[/color][/b]" % [name])
+	print_rich("[b][color=magenta]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [id] + \
+			message_history + "\n[b][color=magenta]-=-=- Error Encountered! %s Module History Ends Here   -=-=-[/color][/b]" % [id])
 
 
 ## Print to the in-game console (if it exists)
