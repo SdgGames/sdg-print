@@ -31,7 +31,9 @@ func _init():
 ## Adds a new logger to the logging system.
 func register_logger(logger: Logger):
 	if logger.id in _logs:
-		_print_logger.error("A logger with the identifier '%s' is already registered." % logger.id)
+		if _logs[logger.id] != logger:
+			_print_logger.error("A logger with the identifier '%s' is already registered." % logger.id)
+		# Else, we already added this logger in the create_logger call.
 		return
 	_logs[logger.id] = logger
 	_print_logger.info("Registered %s logger of type %s." % [logger.id, Logger.LogType.find_key(logger.log_type).to_camel_case()])
@@ -68,6 +70,7 @@ func create_logger(identifier, print_level, archive_level) -> Logger:
 		var logger = Logger.new().second_init(id, Logger.LogLevel.values()[print_level], \
 				Logger.LogLevel.values()[archive_level], _get_type(identifier))
 		add_child(logger)
+		_logs[id] = logger
 		return logger
 
 
