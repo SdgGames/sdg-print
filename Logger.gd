@@ -1,58 +1,84 @@
+@icon("res://addons/sdg-print/Logger.svg")
 class_name Logger extends Node
-# An individual logger for a module or individual object.
-# Can print to the standard output (print()) and to the in-game console.
-# Prints can be turned on or off by setting set_print_level.
-#
-# If a module's prints are disabled, they will not be printed to the screen,
-# but they will still be saved to a buffer. If an error is encountered (logger.error()),
-# the entire buffer will be printed. You can call start() to clear the buffer.
-#
-# Additionally, creates a log of all prints 
+## More advanced print class that logs events, warnings, and errors for a particular subsystem.
+##
+## A logging helper for a module or individual object.
+## Can print to the standard output ([code]print()[/code]) and to the in-game console (if present).
+## The output verbosity can be changed by setting [member print_level] or [member archive_level].
+## [br][br]
+## If a module's [member print_level] is set to [enum LogLevel.SILENT] nothing will be printed to
+## the console, but messages will still be saved to a buffer. If an error is encountered
+## (the call might look like: [code]my_logger.error("Something went wrong)[/code]),
+## the entire saved buffer will be printed. You can call [method start] to clear the buffer if you
+## want to reset the message buffer (starting a new game, loading a new file, etc.).
+## [br][br]
+## Loggers are managed from the Print singleton (of type [SDG_Print])
+## Here is what a generic usage of a [Logger] might look like:
+## [codeblock]
+## var _log: Logger
+## 
+## func _ready():
+##     _log = Print.create_logger("MyLogger", Print.VERBOSE, Print.VERBOSE)
+## 
+## func _on_thing_happened():
+##     _log.info("A thing just happened.")
+## [/codeblock]
 
+
+## Defines the level that each print is recorded at, or archived at.
+## If the print level is higher (more verbose) than [member print_level], then nothing will be
+## output. Similarly, if the print level is higher than [member archive_level], the print will be
+## lost, and will not appear in the output dump for [method error] calls.
 enum LogLevel {
-	SILENT = 0,
-	ERROR = 1,
-	WARNING = 2,
-	INFO = 3,
-	DEBUG = 4,
-	VERBOSE = 5
+	SILENT = 0, ## Mutes all prints. Not intended for use in [method print_at_level] calls.
+	ERROR = 1, ## Prints an error using [code]push_error[/code].
+	WARNING = 2, ## Prints a warning using [code]push_warning[/code].
+	INFO = 3, ## Standard print formatted as "[color=cyan]INFO:[/color] message".
+	DEBUG = 4, ## Standard print formatted as "[color=green]DEBUG:[/color] message".
+	VERBOSE = 5 ## Standard print formatted as "[color=purple]VERBOSE:[/color] message".
 }
 
+## Determines if this logger is a member of the Print singleton, a instanced node, or unknown.
 enum LogType {
 	SINGLETON,
 	OBJECT,
 	UNKNOWN
 }
 
-## Custom ID that appears in logs for this module. Must be unique, registration will
-## fail if there are multiple loggers with the same name.
-## If left blank, will be set based on the parent's path in the scene tree.
+## Custom ID that appears in logs for this module. This must be unique, registration will
+## fail if there are multiple loggers with the same id.
+## [br][br]
+## If left blank, will be set automatically based on the parent's path in the scene tree.
 @export var id := ""
+## What [enum LogLevel] the module will print at. Messages more verbose than this won't be output.
 @export var print_level : LogLevel = LogLevel.SILENT
+## What [enum LogLevel] the module will archive. Messages more verbose than this won't appear in error dumps.
 @export var archive_level : LogLevel = LogLevel.DEBUG
-var log_type : LogType = LogType.OBJECT
-var console = null
-var message_history := ""
+
+# Internal
+var _log_type : LogType = LogType.OBJECT
+var _console = null
+var _message_history := ""
 
 
-## Set up everything that we can't do in an _init call (because Godot calls _init on nodes in the scene tree.
-## Returns self so you can chain Logger.new.init(...)
-func second_init(id := "", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE, log_type := LogType.OBJECT) -> Logger:
+# Register with the Print singleton when ready.
+# If this logger is a child of an existing node, will update the ID accordingly.
+func _ready():
+	if id == "":
+		id = str(get_parent().get_path()).replace("/root/", "")
+	Print._register_logger(self)
+	start()
+
+
+# Set up everything that we can't do in an _init call (because Godot calls _init on nodes in the scene tree.
+# Returns self so you can chain Logger.new.init(...)
+func _second_init(id := "", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE, log_type := LogType.OBJECT) -> Logger:
 	self.id = id
 	self.name = str(id)
 	self.print_level = print_level
 	self.archive_level = archive_level
-	self.log_type = log_type
+	self._log_type = log_type
 	return self
-
-
-## Register with the Print singleton when ready.
-## If this logger is a child of an existing node, will update the ID accordingly.
-func _ready():
-	if id == "":
-		id = str(get_parent().get_path()).replace("/root/", "")
-	Print.register_logger(self)
-	start()
 
 
 ## Clears the message history for this logger instance.
@@ -60,7 +86,7 @@ func _ready():
 ## the entire message history will be printed, starting from this call.
 ## You can optionally provide a message to print (default level is DEBUG).
 func start(message := "", level = LogLevel.DEBUG):
-	message_history = ""
+	_message_history = ""
 	if message != "":
 		print_at_level(message, level)
 
@@ -74,94 +100,86 @@ func assert_that(is_true, message := ""):
 
 ## Logs and error and throws an assert with the given message.
 ## Asserts guarantee that execution pauses if the following code would crash.
-func throw_assert(message: String):
+## By default, this will dump the entire message history to the console.
+## If you just want to print the current error, set [param dump_error] to [code]false[/code].
+func throw_assert(message: String, dump_error := true):
 		error(message)
 		assert(false)
 
 
 ## Prints an error to screen and pushes to console.
 ## By default, this will dump the entire message history to the console.
-## If you just want to print the current error, set dump_error to false.
+## If you just want to print the current error, set [param dump_error] to [code]false[/code].
 func error(message: String, dump_error := true):
 	# Add to the global error count. (useful for unit testing errors)
 	Print.error_count += 1
 	var message_formatted = "[color=red]ERROR:   " + message + "[/color]"
 	# Store this message in case we need it again!
 	if archive_level >= LogLevel.ERROR:
-		message_history += '\n' + message_formatted
+		_message_history += '\n' + message_formatted
 	# Print this message to the screen and console.
 	if print_level >= LogLevel.ERROR:
 		_print_console(message_formatted)
 		push_error(message)
 		if dump_error:
-			_error_dump()
+			error_dump()
 
 
-## Prints a warning to screen and pushes to console.
+## Prints a WARNING to screen and pushes to console.
 func warning(message):
 	# Add to the global warning count. (useful for unit testing warnings)
 	Print.warning_count += 1
 	var message_formatted = "[color=orange]WARNING: " + message + "[/color]" 
 	# Archive this message if necessary.
 	if archive_level >= LogLevel.WARNING:
-		message_history += '\n' + message_formatted
+		_message_history += '\n' + message_formatted
 	# Print this message to the screen and console.
 	if print_level >= LogLevel.WARNING:
 		_print_console(message_formatted)
 		push_warning(message)
-		# Print the warning to Output as well as pusing to Debugger. This way, it won't get missed!
+		# Print the warning to Output as well as pushing to Debugger. This way, it won't get missed!
 		if OS.has_feature("editor"):
 			print_rich(message_formatted)
 
 
-## Prints an info message to screen and console.
+## Prints an INFO message to screen and console.
 func info(message):
 	message = "[color=cyan]INFO:    [/color]" + message
 	# Archive this message if necessary.
 	if archive_level >= LogLevel.INFO:
-		message_history += '\n' + message
+		_message_history += '\n' + message
 	# Print this message to the screen and console.
 	if print_level >= LogLevel.INFO:
 		_print_console(message)
 		print_rich(message)
 
 
-## Prints a debug message to screen and console.
+## Prints a DEBUG message to screen and console.
 func debug(message):
 	message = "[color=green]DEBUG:   [/color]" + message
 	# Archive this message if necessary.
 	if archive_level >= LogLevel.DEBUG:
-		message_history += '\n' + message
+		_message_history += '\n' + message
 	# Print this message to the screen and console.
 	if print_level >= LogLevel.DEBUG:
 		_print_console(message)
 		print_rich(message)
 
 
-## Prints a verbose message to screen and console.
-## Uses print_verbose, so it will only display if (OS.is_stdout_verbose() returns true)
+## Prints a VERBOSE message to screen and console. This uses [code]print_verbose[/code], 
+## so it will only display if [code](OS.is_stdout_verbose() == true)[/code]
 func verbose(message):
 	message = "[color=purple]VERBOSE: [/color]" + message
 	# Archive this message if necessary.
 	if archive_level >= LogLevel.VERBOSE:
-		message_history += '\n' + message
+		_message_history += '\n' + message
 	# Print this message to the screen and console.
 	if print_level >= LogLevel.VERBOSE:
 		_print_console(message)
 		print_rich(message)
 
 
-## Set the minimum level for prints to be sent to the screen and console.
-func set_print_level(level: LogLevel):
-	print_level = level
-
-
-## Set the minimum level for prints to be saved to the message history.
-func set_archive_level(level: LogLevel):
-	archive_level = level
-
-
-## Prints a message at a specific level. Equivalent to calling error, info, etc.
+## Prints a message at a specific level. Equivalent to calling [method error], [method info], etc.
 func print_at_level(message: String, level: LogLevel):
 	match level:
 		LogLevel.ERROR:
@@ -180,18 +198,22 @@ func print_at_level(message: String, level: LogLevel):
 			error("Attempted to print at an invalid logging level.")
 
 
-## Unregister before deletion.
+## Prints the entire message history. This is called automatically from [method error] and
+## [method assert_that], but you can dump errors manually if you don't want to add an entry
+## to the print logs.
+func error_dump():
+	var message = "[b][color=magenta]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [id] + \
+			_message_history + "\n[b][color=magenta]-=-=- Error Encountered! %s Module History Ends Here   -=-=-[/color][/b]" % [id]
+	_print_console(message)
+	print_rich(message)
+
+
+# Unregister before deletion.
 func _exit_tree():
-	Print.unregister_logger(self)
+	Print._unregister_logger(self)
 
 
-## Prints the entire message history.
-func _error_dump():
-	print_rich("[b][color=magenta]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [id] + \
-			message_history + "\n[b][color=magenta]-=-=- Error Encountered! %s Module History Ends Here   -=-=-[/color][/b]" % [id])
-
-
-## Print to the in-game console (if it exists)
+# Print to the in-game console (if it exists).
 func _print_console(message: String):
-	if console:
-		console.Text.append_text(message + "\n")
+	if _console:
+		_console.Text.append_text(message + "\n")
