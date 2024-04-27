@@ -72,6 +72,7 @@ var _logs := {}
 var _global_logger: Logger
 var _print_logger: Logger
 
+
 func _init():
 	_print_logger = Logger.new()._second_init("Print", self_print_level, self_archive_level, Logger.LogType.SINGLETON)
 	add_child(_print_logger)
@@ -100,6 +101,7 @@ func _ready():
 	console.add_command("list_loggers", self, "list_loggers")\
 			.set_description("Prints the names of all of the loggers to the console.")\
 			.register()
+
 
 ## Creates and returns the [Logger] instance for the module that matches [param identifier].
 ## Will always overwrite the logger's [member Logger.print_level] and [member Logger.archive_level]
@@ -159,6 +161,12 @@ func from(identifier, message: String, level = Logger.LogLevel.DEBUG):
 ## If you just want to print the current error, set [param dump_error] to [code]false[/code].
 func throw_assert(message: String, dump_error := true):
 	_global_logger.throw_assert(message, dump_error)
+
+
+## Calls [method Logger.error_dump] on each of the [Logger]s in the project.
+func dump_all():
+	for id in _logs.keys():
+		_logs[id].error_dump()
 
 
 ## Pass-through to the Global print singleton.
@@ -228,6 +236,7 @@ func dump_loggers():
 	for id in _logs.keys():
 		_logs[id].error_dump()
 
+
 # Function for the Console to grab onto. Users can just get the logger first.
 func _dump_logger(identifier):
 	var logger_id = _get_id(identifier)
@@ -235,6 +244,7 @@ func _dump_logger(identifier):
 		_logs[logger_id].error_dump()
 	else:
 		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
+
 
 # Adds a new [Logger] to the logging system. Used by the [Logger] class, use [method create_logger] instead.
 # I set these to private because they are internal to the module, even if they are called from outside the class.

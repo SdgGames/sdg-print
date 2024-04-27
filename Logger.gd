@@ -102,15 +102,17 @@ func assert_that(is_true, message := ""):
 ## Asserts guarantee that execution pauses if the following code would crash.
 ## By default, this will dump the entire message history to the console.
 ## If you just want to print the current error, set [param dump_error] to [code]false[/code].
-func throw_assert(message: String, dump_error := true):
-		error(message)
+func throw_assert(message: String, dump_error := true, dump_all := false):
+		error(message, dump_error, dump_all)
 		assert(false)
 
 
 ## Prints an error to screen and pushes to console.
 ## By default, this will dump the entire message history to the console.
 ## If you just want to print the current error, set [param dump_error] to [code]false[/code].
-func error(message: String, dump_error := true):
+## [br]For large errors that might involve multiple modules, set [param dump_all] to true. This will
+## dump the message history from all modules. Set [param dump_error] to false to avoid redundancy.
+func error(message: String, dump_error := true, dump_all := false):
 	# Add to the global error count. (useful for unit testing errors)
 	Print.error_count += 1
 	var message_formatted = "[color=red]ERROR:   " + message + "[/color]"
@@ -123,6 +125,8 @@ func error(message: String, dump_error := true):
 		push_error(message)
 		if dump_error:
 			error_dump()
+		if dump_all:
+			Print.dump_all()
 
 
 ## Prints a WARNING to screen and pushes to console.
