@@ -102,6 +102,8 @@ func assert_that(is_true, message := ""):
 ## Asserts guarantee that execution pauses if the following code would crash.
 ## By default, this will dump the entire message history to the console.
 ## If you just want to print the current error, set [param dump_error] to [code]false[/code].
+## [br]For large errors that might involve multiple modules, set [param dump_all] to true. This will
+## dump the message history from all modules. Set [param dump_error] to false to avoid redundancy.
 func throw_assert(message: String, dump_error := true, dump_all := false):
 		error(message, dump_error, dump_all)
 		assert(false)
