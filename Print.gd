@@ -81,9 +81,9 @@ func _init():
 
 # Connect to the Console (if it is present)
 func _ready():
-	var console = $"/root/Console"
-	if not console:
+	if !has_node("/root/Console"):
 		return
+	var console = get_node("/root/Console")
 	_global_logger._console = console
 	console.add_command("silence_all_prints", self, "silence_all")\
 			.set_description("Disables all printing to this console and the Output window or external console")\
@@ -256,7 +256,7 @@ func _register_logger(logger: Logger):
 		return
 	_logs[logger.id] = logger
 	_print_logger.info("Registered %s logger of type %s." % [logger.id, Logger.LogType.find_key(logger._log_type).to_camel_case()])
-	if $"/root/Console":
+	if has_node("/root/Console"):
 		logger._console = $"/root/Console"
 
 
