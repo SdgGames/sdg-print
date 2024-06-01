@@ -1,4 +1,4 @@
-@icon("res://addons/sdg-print/Logger.svg")
+@icon("res://addons/sdg-print/Logger_icon.svg")
 class_name Logger extends Node
 ## More advanced print class that logs events, warnings, and errors for a particular subsystem.
 ##
