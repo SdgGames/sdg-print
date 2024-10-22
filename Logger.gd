@@ -12,6 +12,16 @@ class_name Logger extends Node
 ## the entire saved buffer will be printed. You can call [method start] to clear the buffer if you
 ## want to reset the message buffer (starting a new game, loading a new file, etc.).
 ## [br][br]
+## The logger provides a convenient interface for tracking data within a single frame across two 
+## levels: a title level for high-level state information, and a detailed level for specifics.
+## Use [method start_frame] to clear the previous frame's data. Then, use [method set_frame_title]
+## to build up the title string (e.g., "AI: Patrolling | Target: Player") and [method in_frame] to 
+## log detailed information line by line. Finally, use [method end_frame] to indicate that the frame
+## data is fully written. The title and details can be accessed with [method get_frame_title] and
+## [method get_frame] respectively for display in a debugging panel. If accessed before 
+## [method end_frame] is called, both getters will prepend a warning to indicate potentially 
+## incomplete data.
+## [br][br]
 ## Loggers are managed from the Print singleton (of type [SDG_Print])
 ## Here is what a generic usage of a [Logger] might look like:
 ## [codeblock]
@@ -22,6 +32,14 @@ class_name Logger extends Node
 ## 
 ## func _on_thing_happened():
 ##     _log.info("A thing just happened.")
+##
+## func _process(_delta):
+##     _log.start_frame()
+##     _log.set_frame_title("AI: Patrolling")
+##     _log.set_frame_title(" | Target: Player")
+##     _log.in_frame("Current waypoint: " + str(current_waypoint))
+##     _log.in_frame("Path status: " + path_status)
+##     _log.end_frame()
 ## [/codeblock]
 
 
@@ -59,6 +77,10 @@ enum LogType {
 var _log_type : LogType = LogType.OBJECT
 var _console = null
 var _message_history := ""
+var _frame_complete := false
+var _frame_title := ""
+var _frame_string := ""
+var _last_frame := ""
 
 
 # Register with the Print singleton when ready.
@@ -185,6 +207,54 @@ func verbose(message):
 		print_rich(message)
 
 
+## Clears the previous frame's data and prepares for a new frame capture.
+## This should be called at the start of whatever process you're tracking
+## (usually at the start of a frame, hence the name).
+## Setting [param title] has the same effect as calling [method append_frame_title].
+func start_frame(title := ""):
+	_last_frame = _frame_title + '\n' + _frame_string
+	_frame_string = ""
+	_frame_title = title
+	_frame_complete = false
+
+
+## Adds to the title/header information for the current frame.
+## Multiple calls will build up the title string without newlines.
+## This is useful for high-level state information like "AI: Thinking | Moving to: (10, 20)".
+func append_frame_title(title: String):
+	_frame_title += title
+
+
+## Logs a line to the current frame's detailed data.
+## Each line will be appended with a newline character.
+func in_frame(line: String):
+	_frame_string += line + "\n"
+
+
+## Marks the frame data as complete. This indicates that all expected data
+## has been captured and the frame string is ready for access.
+func end_frame():
+	_frame_complete = true
+
+
+## Returns the current frame's title string.
+## If the frame is not complete (end_frame hasn't been called),
+## a warning will be prepended to indicate potentially missing data.
+func get_frame_title() -> String:
+	if not _frame_complete:
+		return "[WARNING: Frame capture incomplete] " + _frame_title
+	return _frame_title
+
+
+## Returns the current frame's detailed data string.
+## If the frame is not complete (end_frame hasn't been called),
+## a warning will be prepended to indicate potentially missing data.
+func get_frame() -> String:
+	if not _frame_complete:
+		return "[WARNING: Frame capture incomplete]\n" + _frame_string
+	return _frame_string
+
+
 ## Prints a message at a specific level. Equivalent to calling [method error], [method info], etc.
 func print_at_level(message: String, level: LogLevel):
 	match level:
@@ -207,9 +277,21 @@ func print_at_level(message: String, level: LogLevel):
 ## Prints the entire message history. This is called automatically from [method error] and
 ## [method assert_that], but you can dump errors manually if you don't want to add an entry
 ## to the print logs.
+## Also appends the frame data for the current frame (if applicable).
 func error_dump():
-	var message = "[b][color=magenta]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [id] + \
-			_message_history + "\n[b][color=magenta]-=-=- Error Encountered! %s Module History Ends Here   -=-=-[/color][/b]" % [id]
+	var message = "[b][color=magenta]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [id]
+	message += _message_history
+	# Add the frame data the the output.
+	if _last_frame != "":
+		message += "[b][color=magenta]-=-=- Last Frame String: -=-=-[/color][/b]"
+		message += _frame_title + '\n' + _frame_string
+	if _frame_title != "" or _frame_string != "":
+		if _frame_complete:
+			message += "[b][color=magenta]-=-=- Current Frame String: -=-=-[/color][/b]"
+		else:
+			message += "[b][color=magenta]-=-=- Current Frame String (INCOMPLETE): -=-=-[/color][/b]"
+		message += _frame_title + '\n' + _frame_string
+	message += "\n[b][color=magenta]-=-=- Error Encountered! %s Module History Ends Here   -=-=-[/color][/b]" % [id]
 	_print_console(message)
 	print_rich(message)
 

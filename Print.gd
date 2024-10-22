@@ -154,6 +154,28 @@ func from(identifier, message: String, level = Logger.LogLevel.DEBUG):
 		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
 
 
+## Gets the frame data string from the specified logger.
+## Will throw an error if no logger matches [param identifier].
+func get_frame_from(identifier) -> String:
+	var logger_id = _get_id(identifier)
+	if _logs.has(logger_id):
+		return _logs[logger_id].get_frame()
+	else:
+		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
+		return ""
+
+
+## Gets the frame title string from the specified logger.
+## Will throw an error if no logger matches [param identifier].
+func get_frame_title_from(identifier) -> String:
+	var logger_id = _get_id(identifier)
+	if _logs.has(logger_id):
+		return _logs[logger_id].get_frame_title()
+	else:
+		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
+		return ""
+
+
 ## Pass-through to the Global print singleton.
 ## Logs and error and throws an assert with the given message.
 ## Asserts pause code execution.
