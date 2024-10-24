@@ -249,10 +249,14 @@ func get_frame_title() -> String:
 ## Returns the current frame's detailed data string.
 ## If the frame is not complete (end_frame hasn't been called),
 ## a warning will be prepended to indicate potentially missing data.
-func get_frame() -> String:
+## If [param prepend_title] is true, the frame title will be included at the start.
+func get_frame(prepend_title := false) -> String:
+	var frame = _frame_string
 	if not _frame_complete:
-		return "[WARNING: Frame capture incomplete]\n" + _frame_string
-	return _frame_string
+		frame = "[WARNING: Frame capture incomplete]\n" + frame
+	if prepend_title:
+		frame = get_frame_title() + '\n' + frame
+	return frame
 
 
 ## Prints a message at a specific level. Equivalent to calling [method error], [method info], etc.

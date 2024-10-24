@@ -156,10 +156,11 @@ func from(identifier, message: String, level = Logger.LogLevel.DEBUG):
 
 ## Gets the frame data string from the specified logger.
 ## Will throw an error if no logger matches [param identifier].
-func get_frame_from(identifier) -> String:
+## If [param prepend_title] is true, the frame title will be included.
+func get_frame_from(identifier, prepend_title := false) -> String:
 	var logger_id = _get_id(identifier)
 	if _logs.has(logger_id):
-		return _logs[logger_id].get_frame()
+		return _logs[logger_id].get_frame(prepend_title)
 	else:
 		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
 		return ""
