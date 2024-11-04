@@ -68,12 +68,17 @@ enum LogType {
 ## [br][br]
 ## If left blank, will be set automatically based on the parent's path in the scene tree.
 @export var id := ""
+
 ## What [enum LogLevel] the module will print at. Messages more verbose than this won't be output.
 @export var print_level : LogLevel = LogLevel.SILENT
+
 ## What [enum LogLevel] the module will archive. Messages more verbose than this won't appear in error dumps.
 @export var archive_level : LogLevel = LogLevel.DEBUG
 
-# Internal
+## Settings controlling the format and appearance of log messages.
+@export var settings: PrintSettings
+
+# Internal variables
 var _log_type : LogType = LogType.OBJECT
 var _console = null
 var _message_history := ""
@@ -92,14 +97,16 @@ func _ready():
 	start()
 
 
-# Set up everything that we can't do in an _init call (because Godot calls _init on nodes in the scene tree.
+# Set up everything that we can't do in an _init call (because Godot calls _init on nodes in the scene tree).
 # Returns self so you can chain Logger.new.init(...)
-func _second_init(id := "", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE, log_type := LogType.OBJECT) -> Logger:
+func _second_init(id := "", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE,
+		log_type := LogType.OBJECT, custom_settings: PrintSettings = null) -> Logger:
 	self.id = id
 	self.name = str(id)
 	self.print_level = print_level
 	self.archive_level = archive_level
 	self._log_type = log_type
+	self.settings = custom_settings if custom_settings else Print.settings
 	return self
 
 
@@ -137,13 +144,10 @@ func throw_assert(message: String, dump_error := true, dump_all := false):
 ## [br]For large errors that might involve multiple modules, set [param dump_all] to true. This will
 ## dump the message history from all modules. Set [param dump_error] to false to avoid redundancy.
 func error(message: String, dump_error := true, dump_all := false):
-	# Add to the global error count. (useful for unit testing errors)
 	Print.error_count += 1
-	var message_formatted = "[color=red]ERROR:   " + message + "[/color]"
-	# Store this message in case we need it again!
+	var message_formatted = _format(settings.error_color, "ERROR", message)
 	if archive_level >= LogLevel.ERROR:
 		_message_history += '\n' + message_formatted
-	# Print this message to the screen and console.
 	if print_level >= LogLevel.ERROR:
 		_print_console(message_formatted)
 		push_error(message)
@@ -155,13 +159,10 @@ func error(message: String, dump_error := true, dump_all := false):
 
 ## Prints a WARNING to screen and pushes to console.
 func warning(message):
-	# Add to the global warning count. (useful for unit testing warnings)
 	Print.warning_count += 1
-	var message_formatted = "[color=orange]WARNING: " + message + "[/color]" 
-	# Archive this message if necessary.
+	var message_formatted = _format(settings.warning_color, "WARNING", message)
 	if archive_level >= LogLevel.WARNING:
 		_message_history += '\n' + message_formatted
-	# Print this message to the screen and console.
 	if print_level >= LogLevel.WARNING:
 		_print_console(message_formatted)
 		push_warning(message)
@@ -172,39 +173,33 @@ func warning(message):
 
 ## Prints an INFO message to screen and console.
 func info(message):
-	message = "[color=cyan]INFO:    [/color]" + message
-	# Archive this message if necessary.
+	var message_formatted = _format(settings.info_color, "INFO", message)
 	if archive_level >= LogLevel.INFO:
-		_message_history += '\n' + message
-	# Print this message to the screen and console.
+		_message_history += '\n' + message_formatted
 	if print_level >= LogLevel.INFO:
-		_print_console(message)
-		print_rich(message)
+		_print_console(message_formatted)
+		print_rich(message_formatted)
 
 
 ## Prints a DEBUG message to screen and console.
 func debug(message):
-	message = "[color=green]DEBUG:   [/color]" + message
-	# Archive this message if necessary.
+	var message_formatted = _format(settings.debug_color, "DEBUG", message)
 	if archive_level >= LogLevel.DEBUG:
-		_message_history += '\n' + message
-	# Print this message to the screen and console.
+		_message_history += '\n' + message_formatted
 	if print_level >= LogLevel.DEBUG:
-		_print_console(message)
-		print_rich(message)
+		_print_console(message_formatted)
+		print_rich(message_formatted)
 
 
 ## Prints a VERBOSE message to screen and console. This uses [code]print_verbose[/code], 
 ## so it will only display if [code](OS.is_stdout_verbose() == true)[/code]
 func verbose(message):
-	message = "[color=purple]VERBOSE: [/color]" + message
-	# Archive this message if necessary.
+	var message_formatted = _format(settings.verbose_color, "VERBOSE", message)
 	if archive_level >= LogLevel.VERBOSE:
-		_message_history += '\n' + message
-	# Print this message to the screen and console.
+		_message_history += '\n' + message_formatted
 	if print_level >= LogLevel.VERBOSE:
-		_print_console(message)
-		print_rich(message)
+		_print_console(message_formatted)
+		print_rich(message_formatted)
 
 
 ## Clears the previous frame's data and prepares for a new frame capture.
@@ -282,30 +277,77 @@ func print_at_level(message: String, level: LogLevel):
 ## [method assert_that], but you can dump errors manually if you don't want to add an entry
 ## to the print logs.
 ## Also appends the frame data for the current frame (if applicable).
+## Prints the entire message history. This is called automatically from [method error] and
+## [method assert_that], but you can dump errors manually if you don't want to add an entry
+## to the print logs.
+## Also appends the frame data for the current frame (if applicable).
 func error_dump():
-	var message = "[b][color=magenta]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [id]
+	var divider_color = settings.module_name_color.to_html(false)
+	var message = "[b][color=#%s]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [
+		divider_color,
+		id
+	]
 	message += _message_history
-	# Add the frame data the the output.
+	
+	# Add the frame data to the output
 	if _last_frame != "":
-		message += "[b][color=magenta]-=-=- Last Frame String: -=-=-[/color][/b]"
+		message += "\n[b][color=#%s]-=-=- Last Frame String: -=-=-[/color][/b]\n" % divider_color
 		message += _frame_title + '\n' + _frame_string
+		
 	if _frame_title != "" or _frame_string != "":
 		if _frame_complete:
-			message += "[b][color=magenta]-=-=- Current Frame String: -=-=-[/color][/b]"
+			message += "\n[b][color=#%s]-=-=- Current Frame String: -=-=-[/color][/b]\n" % divider_color
 		else:
-			message += "[b][color=magenta]-=-=- Current Frame String (INCOMPLETE): -=-=-[/color][/b]"
+			message += "\n[b][color=#%s]-=-=- Current Frame String (INCOMPLETE): -=-=-[/color][/b]\n" % divider_color
 		message += _frame_title + '\n' + _frame_string
-	message += "\n[b][color=magenta]-=-=- Error Encountered! %s Module History Ends Here   -=-=-[/color][/b]" % [id]
+		
+	message += "\n[b][color=#%s]-=-=- Error Encountered! %s Module History Ends Here   -=-=-[/color][/b]" % [
+		divider_color,
+		id
+	]
+	
 	_print_console(message)
 	print_rich(message)
 
 
-# Unregister before deletion.
+# Internal methods
+
 func _exit_tree():
 	Print._unregister_logger(self)
 
 
-# Print to the in-game console (if it exists).
 func _print_console(message: String):
 	if _console:
 		_console.Text.append_text(message + "\n")
+
+
+func _format(level_color: Color, level: String, message: String) -> String:
+	var formatted_message := ""
+	
+	# Add timestamp if enabled
+	if settings.show_timestamps:
+		formatted_message += "[color=#%s][%s][/color] " % [
+			settings.timestamp_color.to_html(false),
+			Time.get_datetime_string_from_system()
+		]
+	
+	# Add module name if enabled
+	if settings.show_module_names:
+		formatted_message += "[b][color=#%s]%-*s[/color][/b] " % [
+			settings.module_name_color.to_html(false),
+			Print._current_module_width if Print else settings.max_module_width,
+			id
+		]
+	
+	# Add log level if enabled
+	if settings.show_log_levels:
+		formatted_message += "[color=#%s]%-*s[/color] " % [
+			level_color.to_html(false),
+			8,
+			level + ":"
+		]
+	
+	# Add the actual message
+	formatted_message += message
+	
+	return formatted_message

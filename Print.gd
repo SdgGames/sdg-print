@@ -61,6 +61,9 @@ const self_print_level := Logger.LogLevel.VERBOSE
 ## The default [enum Logger.LogLevel] for archiving from the "Print" logger.
 const self_archive_level := Logger.LogLevel.VERBOSE
 
+## Global print settings used as defaults for all loggers without custom settings
+@export var settings: PrintSettings
+
 ## The number of warnings encountered since the game started.
 @export var warning_count := 0
 ## The number of errors encountered since the game started.
@@ -71,10 +74,24 @@ var _logs := {}
 # References to the global and local logger instances.
 var _global_logger: Logger
 var _print_logger: Logger
-
+# Current width needed to align all logger module names
+var _current_module_width := 0
 
 func _init():
-	_print_logger = Logger.new()._second_init("Print", self_print_level, self_archive_level, Logger.LogType.SINGLETON)
+	# Register project settings
+	PrintSettings._register_settings()
+	
+	# Initialize global settings
+	settings = PrintSettings.from_project_settings()
+	
+	# Create the print logger with default settings
+	_print_logger = Logger.new()._second_init(
+		"Print", 
+		self_print_level,
+		self_archive_level,
+		Logger.LogType.SINGLETON,
+		settings
+	)
 	add_child(_print_logger)
 	_global_logger = create_logger("Global", VERBOSE, VERBOSE)
 
@@ -109,18 +126,29 @@ func _ready():
 ## (such as during [code]_ready[/code] calls in scene creation), you can safely call
 ## [code]get_logger(id, true)[/code] to generate the [Logger] object. The object will default to
 ## [code](VERBOSE, VERBOSE)[/code] until [method create_logger] is finally called.
-func create_logger(identifier, print_level, archive_level) -> Logger:
+func create_logger(identifier, print_level, archive_level, custom_settings: PrintSettings = null) -> Logger:
 	var id = _get_id(identifier)
 	if id in _logs:
 		_print_logger.debug("Print.create_logger found existing logger %s." % id)
 		var logger: Logger = _logs[id]
 		logger.print_level = print_level
 		logger.archive_level = archive_level
+		if custom_settings:
+			logger.settings = custom_settings
 		return logger
 	else:
 		_print_logger.debug("Print.create_logger creating new logger %s." % id)
-		var logger = Logger.new()._second_init(id, Logger.LogLevel.values()[print_level], \
-				Logger.LogLevel.values()[archive_level], _get_type(identifier))
+		# Update the module width if this logger has a longer name
+		_current_module_width = max(_current_module_width, id.length())
+		
+		var logger_settings = custom_settings if custom_settings else settings
+		var logger = Logger.new()._second_init(
+			id,
+			Logger.LogLevel.values()[print_level],
+			Logger.LogLevel.values()[archive_level],
+			_get_type(identifier),
+			logger_settings
+		)
 		add_child(logger)
 		_logs[id] = logger
 		return logger
@@ -288,7 +316,15 @@ func _register_logger(logger: Logger):
 func _unregister_logger(logger: Logger):
 	if logger.id in _logs:
 		_logs.erase(logger.id)
-		_print_logger.info("Un-Registered %s logger of type %s." % [logger.id, Logger.LogType.find_key(logger._log_type).to_camel_case()])
+		_print_logger.info("Un-Registered %s logger of type %s." % [
+			logger.id, 
+			Logger.LogType.find_key(logger._log_type).to_camel_case()
+		])
+		
+		# Recalculate the maximum module width
+		_current_module_width = 0
+		for id in _logs.keys():
+			_current_module_width = max(_current_module_width, id.length())
 	else:
 		_print_logger.error("A logger with the identifier '%s' is not registered." % logger.id)
 
