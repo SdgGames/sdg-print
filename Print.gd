@@ -57,7 +57,7 @@ enum {
 }
 
 ## The default [enum Logger.LogLevel] for printing from the "Print" logger.
-const self_print_level := Logger.LogLevel.VERBOSE
+const self_print_level := Logger.LogLevel.SILENT
 ## The default [enum Logger.LogLevel] for archiving from the "Print" logger.
 const self_archive_level := Logger.LogLevel.VERBOSE
 

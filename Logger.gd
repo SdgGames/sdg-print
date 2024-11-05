@@ -8,7 +8,7 @@ class_name Logger extends Node
 ## [br][br]
 ## If a module's [member print_level] is set to [enum LogLevel.SILENT] nothing will be printed to
 ## the console, but messages will still be saved to a buffer. If an error is encountered
-## (the call might look like: [code]my_logger.error("Something went wrong)[/code]),
+## (the call might look like: [code]my_logger.error("Something went wrong")[/code]),
 ## the entire saved buffer will be printed. You can call [method start] to clear the buffer if you
 ## want to reset the message buffer (starting a new game, loading a new file, etc.).
 ## [br][br]
@@ -17,30 +17,7 @@ class_name Logger extends Node
 ## Use [method start_frame] to clear the previous frame's data. Then, use [method set_frame_title]
 ## to build up the title string (e.g., "AI: Patrolling | Target: Player") and [method in_frame] to 
 ## log detailed information line by line. Finally, use [method end_frame] to indicate that the frame
-## data is fully written. The title and details can be accessed with [method get_frame_title] and
-## [method get_frame] respectively for display in a debugging panel. If accessed before 
-## [method end_frame] is called, both getters will prepend a warning to indicate potentially 
-## incomplete data.
-## [br][br]
-## Loggers are managed from the Print singleton (of type [SDG_Print])
-## Here is what a generic usage of a [Logger] might look like:
-## [codeblock]
-## var _log: Logger
-## 
-## func _ready():
-##     _log = Print.create_logger("MyLogger", Print.VERBOSE, Print.VERBOSE)
-## 
-## func _on_thing_happened():
-##     _log.info("A thing just happened.")
-##
-## func _process(_delta):
-##     _log.start_frame()
-##     _log.set_frame_title("AI: Patrolling")
-##     _log.set_frame_title(" | Target: Player")
-##     _log.in_frame("Current waypoint: " + str(current_waypoint))
-##     _log.in_frame("Path status: " + path_status)
-##     _log.end_frame()
-## [/codeblock]
+## data is fully written.
 
 
 ## Defines the level that each print is recorded at, or archived at.
@@ -81,11 +58,12 @@ enum LogType {
 # Internal variables
 var _log_type : LogType = LogType.OBJECT
 var _console = null
-var _message_history := ""
-var _frame_complete := false
-var _frame_title := ""
-var _frame_string := ""
-var _last_frame := ""
+
+# Storage for log entries and frame logs
+var _log_history: RingBuffer
+var _frame_history: RingBuffer
+var _current_frame: FrameLog
+var _has_frame_changes := false
 
 
 # Register with the Print singleton when ready.
@@ -107,49 +85,39 @@ func _second_init(id := "", print_level := LogLevel.VERBOSE, archive_level := Lo
 	self.archive_level = archive_level
 	self._log_type = log_type
 	self.settings = custom_settings if custom_settings else Print.settings
+	
+	# Initialize our history buffers
+	_log_history = RingBuffer.new(settings.max_log_entries)
+	_frame_history = RingBuffer.new(settings.max_frames)
 	return self
 
 
-## Clears the message history for this logger instance.
-## This effectively lets you start a new task. If an error is thrown,
-## the entire message history will be printed, starting from this call.
-## You can optionally provide a message to print (default level is DEBUG).
-func start(message := "", level = LogLevel.DEBUG):
-	_message_history = ""
-	if message != "":
-		print_at_level(message, level)
-
-
-## Throws an error if the statement is false.
-## Also throws an assert so program execution will halt.
-func assert_that(is_true, message := ""):
-	if !is_true:
-		throw_assert(message)
+## Clears the message and frame history for this logger instance.
+func start():
+	_log_history.clear()
+	_frame_history.clear()
+	_current_frame = null
+	_has_frame_changes = false
 
 
 ## Logs and error and throws an assert with the given message.
-## Asserts guarantee that execution pauses if the following code would crash.
 ## By default, this will dump the entire message history to the console.
 ## If you just want to print the current error, set [param dump_error] to [code]false[/code].
-## [br]For large errors that might involve multiple modules, set [param dump_all] to true. This will
-## dump the message history from all modules. Set [param dump_error] to false to avoid redundancy.
 func throw_assert(message: String, dump_error := true, dump_all := false):
-		error(message, dump_error, dump_all)
-		assert(false)
+	error(message, dump_error, dump_all)
+	assert(false)
 
 
 ## Prints an error to screen and pushes to console.
 ## By default, this will dump the entire message history to the console.
 ## If you just want to print the current error, set [param dump_error] to [code]false[/code].
-## [br]For large errors that might involve multiple modules, set [param dump_all] to true. This will
-## dump the message history from all modules. Set [param dump_error] to false to avoid redundancy.
 func error(message: String, dump_error := true, dump_all := false):
 	Print.error_count += 1
-	var message_formatted = _format(settings.error_color, "ERROR", message)
-	if archive_level >= LogLevel.ERROR:
-		_message_history += '\n' + message_formatted
+	var entry = _log(LogLevel.ERROR, message)
+	
 	if print_level >= LogLevel.ERROR:
-		_print_console(message_formatted)
+		var formatted = entry.format(settings)
+		_print_console(formatted)
 		push_error(message)
 		if dump_error:
 			error_dump()
@@ -158,100 +126,110 @@ func error(message: String, dump_error := true, dump_all := false):
 
 
 ## Prints a WARNING to screen and pushes to console.
-func warning(message):
+func warning(message: String):
 	Print.warning_count += 1
-	var message_formatted = _format(settings.warning_color, "WARNING", message)
-	if archive_level >= LogLevel.WARNING:
-		_message_history += '\n' + message_formatted
+	var entry = _log(LogLevel.WARNING, message)
+	
 	if print_level >= LogLevel.WARNING:
-		_print_console(message_formatted)
+		var formatted = entry.format(settings)
+		_print_console(formatted)
 		push_warning(message)
-		# Print the warning to Output as well as pushing to Debugger. This way, it won't get missed!
 		if OS.has_feature("editor"):
-			print_rich(message_formatted)
+			print_rich(formatted)
 
 
 ## Prints an INFO message to screen and console.
-func info(message):
-	var message_formatted = _format(settings.info_color, "INFO", message)
-	if archive_level >= LogLevel.INFO:
-		_message_history += '\n' + message_formatted
+func info(message: String):
+	var entry = _log(LogLevel.INFO, message)
+	
 	if print_level >= LogLevel.INFO:
-		_print_console(message_formatted)
-		print_rich(message_formatted)
+		var formatted = entry.format(settings)
+		_print_console(formatted)
+		print_rich(formatted)
 
 
 ## Prints a DEBUG message to screen and console.
-func debug(message):
-	var message_formatted = _format(settings.debug_color, "DEBUG", message)
-	if archive_level >= LogLevel.DEBUG:
-		_message_history += '\n' + message_formatted
+func debug(message: String):
+	var entry = _log(LogLevel.DEBUG, message)
+	
 	if print_level >= LogLevel.DEBUG:
-		_print_console(message_formatted)
-		print_rich(message_formatted)
+		var formatted = entry.format(settings)
+		_print_console(formatted)
+		print_rich(formatted)
 
 
-## Prints a VERBOSE message to screen and console. This uses [code]print_verbose[/code], 
-## so it will only display if [code](OS.is_stdout_verbose() == true)[/code]
-func verbose(message):
-	var message_formatted = _format(settings.verbose_color, "VERBOSE", message)
-	if archive_level >= LogLevel.VERBOSE:
-		_message_history += '\n' + message_formatted
+## Prints a VERBOSE message to screen and console.
+func verbose(message: String):
+	var entry = _log(LogLevel.VERBOSE, message)
+	
 	if print_level >= LogLevel.VERBOSE:
-		_print_console(message_formatted)
-		print_rich(message_formatted)
+		var formatted = entry.format(settings)
+		_print_console(formatted)
+		print_rich(formatted)
 
 
 ## Clears the previous frame's data and prepares for a new frame capture.
 ## This should be called at the start of whatever process you're tracking
 ## (usually at the start of a frame, hence the name).
-## Setting [param title] has the same effect as calling [method append_frame_title].
 func start_frame(title := ""):
-	_last_frame = _frame_title + '\n' + _frame_string
-	_frame_string = ""
-	_frame_title = title
-	_frame_complete = false
+	if _current_frame != null and _has_frame_changes:
+		_frame_history.push(_current_frame)
+	
+	_current_frame = FrameLog.new(id, title)
+	_has_frame_changes = title != ""
 
 
 ## Adds to the title/header information for the current frame.
 ## Multiple calls will build up the title string without newlines.
 ## This is useful for high-level state information like "AI: Thinking | Moving to: (10, 20)".
 func append_frame_title(title: String):
-	_frame_title += title
+	if _current_frame == null:
+		_current_frame = FrameLog.new(id)
+	_current_frame.title += title
+	_has_frame_changes = true
 
 
 ## Logs a line to the current frame's detailed data.
 ## Each line will be appended with a newline character.
 func in_frame(line: String):
-	_frame_string += line + "\n"
+	if _current_frame == null:
+		_current_frame = FrameLog.new(id)
+	_current_frame.details += line + "\n"
+	_has_frame_changes = true
 
 
 ## Marks the frame data as complete. This indicates that all expected data
 ## has been captured and the frame string is ready for access.
 func end_frame():
-	_frame_complete = true
+	if _current_frame != null:
+		_current_frame.is_complete = true
+		_frame_history.push(_current_frame)
+		_has_frame_changes = false
 
 
 ## Returns the current frame's title string.
-## If the frame is not complete (end_frame hasn't been called),
-## a warning will be prepended to indicate potentially missing data.
+## If the frame is not complete, includes a warning about potentially missing data.
 func get_frame_title() -> String:
-	if not _frame_complete:
-		return "[WARNING: Frame capture incomplete] " + _frame_title
-	return _frame_title
+	if _current_frame == null:
+		return ""
+	return _current_frame.format(true)
 
 
 ## Returns the current frame's detailed data string.
-## If the frame is not complete (end_frame hasn't been called),
-## a warning will be prepended to indicate potentially missing data.
+## If the frame is not complete, includes a warning about potentially missing data.
 ## If [param prepend_title] is true, the frame title will be included at the start.
 func get_frame(prepend_title := false) -> String:
-	var frame = _frame_string
-	if not _frame_complete:
-		frame = "[WARNING: Frame capture incomplete]\n" + frame
-	if prepend_title:
-		frame = get_frame_title() + '\n' + frame
-	return frame
+	if _current_frame == null:
+		return ""
+	return _current_frame.format(prepend_title)
+
+
+## Helper function to create and store a log entry
+func _log(level: LogLevel, message: String) -> LogEntry:
+	var entry = LogEntry.new(level, id, message)
+	if archive_level >= level:
+		_log_history.push(entry)
+	return entry
 
 
 ## Prints a message at a specific level. Equivalent to calling [method error], [method info], etc.
@@ -274,34 +252,35 @@ func print_at_level(message: String, level: LogLevel):
 
 
 ## Prints the entire message history. This is called automatically from [method error] and
-## [method assert_that], but you can dump errors manually if you don't want to add an entry
+## [method throw_assert], but you can dump errors manually if you don't want to add an entry
 ## to the print logs.
-## Also appends the frame data for the current frame (if applicable).
-## Prints the entire message history. This is called automatically from [method error] and
-## [method assert_that], but you can dump errors manually if you don't want to add an entry
-## to the print logs.
-## Also appends the frame data for the current frame (if applicable).
 func error_dump():
 	var divider_color = settings.module_name_color.to_html(false)
 	var message = "[b][color=#%s]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [
 		divider_color,
 		id
 	]
-	message += _message_history
 	
-	# Add the frame data to the output
-	if _last_frame != "":
-		message += "\n[b][color=#%s]-=-=- Last Frame String: -=-=-[/color][/b]\n" % divider_color
-		message += _frame_title + '\n' + _frame_string
-		
-	if _frame_title != "" or _frame_string != "":
-		if _frame_complete:
-			message += "\n[b][color=#%s]-=-=- Current Frame String: -=-=-[/color][/b]\n" % divider_color
+	# Add all logged messages in chronological order
+	for entry in _log_history.get_all():
+		message += "\n" + entry.format(settings)
+	
+	# Add frame history
+	var frames = _frame_history.get_all()
+	if frames.size() > 0:
+		message += "\n[b][color=#%s]-=-=- Frame History: -=-=-[/color][/b]" % divider_color
+		for frame in frames:
+			message += "\n" + frame.format(true)
+	
+	# Add current frame if it exists and has changes
+	if _current_frame != null and _has_frame_changes:
+		if _current_frame.is_complete:
+			message += "\n[b][color=#%s]-=-=- Current Frame: -=-=-[/color][/b]\n" % divider_color
 		else:
-			message += "\n[b][color=#%s]-=-=- Current Frame String (INCOMPLETE): -=-=-[/color][/b]\n" % divider_color
-		message += _frame_title + '\n' + _frame_string
-		
-	message += "\n[b][color=#%s]-=-=- Error Encountered! %s Module History Ends Here   -=-=-[/color][/b]" % [
+			message += "\n[b][color=#%s]-=-=- Current Frame (INCOMPLETE): -=-=-[/color][/b]\n" % divider_color
+		message += _current_frame.format(true)
+	
+	message += "\n[b][color=#%s]-=-=- Error Encountered! %s Module History Ends Here -=-=-[/color][/b]" % [
 		divider_color,
 		id
 	]
@@ -310,8 +289,6 @@ func error_dump():
 	print_rich(message)
 
 
-# Internal methods
-
 func _exit_tree():
 	Print._unregister_logger(self)
 
@@ -319,35 +296,3 @@ func _exit_tree():
 func _print_console(message: String):
 	if _console:
 		_console.Text.append_text(message + "\n")
-
-
-func _format(level_color: Color, level: String, message: String) -> String:
-	var formatted_message := ""
-	
-	# Add timestamp if enabled
-	if settings.show_timestamps:
-		formatted_message += "[color=#%s][%s][/color] " % [
-			settings.timestamp_color.to_html(false),
-			Time.get_datetime_string_from_system()
-		]
-	
-	# Add module name if enabled
-	if settings.show_module_names:
-		formatted_message += "[b][color=#%s]%-*s[/color][/b] " % [
-			settings.module_name_color.to_html(false),
-			Print._current_module_width if Print else settings.max_module_width,
-			id
-		]
-	
-	# Add log level if enabled
-	if settings.show_log_levels:
-		formatted_message += "[color=#%s]%-*s[/color] " % [
-			level_color.to_html(false),
-			8,
-			level + ":"
-		]
-	
-	# Add the actual message
-	formatted_message += message
-	
-	return formatted_message

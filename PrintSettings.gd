@@ -22,6 +22,14 @@ class_name PrintSettings extends Resource
 ## @export var my_logger_settings: PrintSettings
 ## [/codeblock]
 
+@export_group("Maximum Log History Sizes")
+## Maximum number of log entries to keep in history per logger
+@export_range(10, 10000, 10) var max_log_entries := 1000
+
+## Maximum number of frames to keep in history per logger
+@export_range(10, 1000, 10) var max_frames := 100
+
+@export_group("Log Formatting Options")
 ## Whether to show timestamps in log messages.
 @export var show_timestamps := true
 
@@ -33,6 +41,7 @@ class_name PrintSettings extends Resource
 
 ## Maximum width allowed for module names in the output.
 @export_range(1, 100, 1, "or_greater") var max_module_width := 20
+
 
 @export_group("Log Level Colors")
 ## Color used for error-level log messages.
@@ -58,8 +67,20 @@ class_name PrintSettings extends Resource
 @export var module_name_color := Color.MAGENTA
 
 # ProjectSettings paths and default values
-const SETTINGS_PATH = "game/logging/"
+const SETTINGS_PATH = "debug/logging/"
 const DEFAULT_SETTINGS = {
+	"history/max_log_entries": {
+		"type": TYPE_INT,
+		"value": 5000,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "10,100000,10"
+	},
+	"history/max_frames": {
+		"type": TYPE_INT,
+		"value": 100,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "2,1000,10"
+	},
 	"format/show_timestamps": {
 		"type": TYPE_BOOL,
 		"value": true
@@ -72,7 +93,7 @@ const DEFAULT_SETTINGS = {
 		"type": TYPE_BOOL,
 		"value": true
 	},
-	"format/max_module_width": {
+	"format/module_name_max_padding_width": {
 		"type": TYPE_INT,
 		"value": 20,
 		"hint": PROPERTY_HINT_RANGE,
@@ -105,7 +126,7 @@ const DEFAULT_SETTINGS = {
 	"colors/module_name": {
 		"type": TYPE_COLOR,
 		"value": Color.MAGENTA
-	}
+	},
 }
 
 
@@ -144,10 +165,13 @@ static func from_project_settings() -> PrintSettings:
 
 ## Updates this PrintSettings instance with values from ProjectSettings.
 func load_from_project_settings() -> void:
+	max_log_entries = ProjectSettings.get_setting(SETTINGS_PATH + "history/max_log_entries")
+	max_frames = ProjectSettings.get_setting(SETTINGS_PATH + "history/max_frames")
+	
 	show_timestamps = ProjectSettings.get_setting(SETTINGS_PATH + "format/show_timestamps")
 	show_module_names = ProjectSettings.get_setting(SETTINGS_PATH + "format/show_module_names")
 	show_log_levels = ProjectSettings.get_setting(SETTINGS_PATH + "format/show_log_levels")
-	max_module_width = ProjectSettings.get_setting(SETTINGS_PATH + "format/max_module_width")
+	max_module_width = ProjectSettings.get_setting(SETTINGS_PATH + "format/module_name_max_padding_width")
 	
 	error_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/error")
 	warning_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/warning")
