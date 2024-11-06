@@ -3,7 +3,7 @@ extends EditorPlugin
 
 
 const PluginName = 'Print'
-const PluginPath = 'res://addons/sdg-print/Print.tscn'
+const PluginPath = 'res://addons/sdg-print/print/Print.tscn'
 
 
 func _enter_tree():

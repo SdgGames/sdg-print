@@ -1,4 +1,4 @@
-@icon("res://addons/sdg-print/Print_icon.svg")
+@icon("res://addons/sdg-print/print/Print_icon.svg")
 class_name SDG_Print extends Node
 ## Print singleton. Auto-registers under the name "Print"
 ##

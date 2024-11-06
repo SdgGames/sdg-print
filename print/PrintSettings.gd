@@ -1,4 +1,3 @@
-@icon("res://addons/sdg-print/PrintSettings_icon.svg")
 class_name PrintSettings extends Resource
 ## Resource class that stores formatting and color settings for loggers.
 ##

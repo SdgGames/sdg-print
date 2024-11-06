@@ -1,4 +1,4 @@
-@icon("res://addons/sdg-print/Logger_icon.svg")
+@icon("res://addons/sdg-print/logger/Logger_icon.svg")
 class_name Logger extends Node
 ## More advanced print class that logs events, warnings, and errors for a particular subsystem.
 ##
@@ -100,12 +100,12 @@ func start():
 	_has_frame_changes = false
 
 
-## Logs and error and throws an assert with the given message.
-## By default, this will dump the entire message history to the console.
-## If you just want to print the current error, set [param dump_error] to [code]false[/code].
-func throw_assert(message: String, dump_error := true, dump_all := false):
-	error(message, dump_error, dump_all)
-	assert(false)
+## Throws an error if the statement is false.
+## Also throws an assert so program execution will halt.
+func assert_that(is_true, message := ""):
+	if !is_true:
+		error(message, true, true)
+		assert(false)
 
 
 ## Prints an error to screen and pushes to console.
