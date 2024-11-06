@@ -212,7 +212,7 @@ func end_frame():
 func get_frame_title() -> String:
 	if _current_frame == null:
 		return ""
-	return _current_frame.format(true)
+	return _current_frame.title
 
 
 ## Returns the current frame's detailed data string.
