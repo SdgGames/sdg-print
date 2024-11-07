@@ -61,6 +61,9 @@ const self_print_level := Logger.LogLevel.SILENT
 ## The default [enum Logger.LogLevel] for archiving from the "Print" logger.
 const self_archive_level := Logger.LogLevel.VERBOSE
 
+## The version of the dump file. We should use this to check for compatability when loading dumps.
+const DUMP_FILE_VERSION = 1
+
 ## Global print settings used as defaults for all loggers without custom settings
 @export var settings: PrintSettings
 
@@ -214,10 +217,29 @@ func throw_assert(message: String, dump_error := true):
 	_global_logger.throw_assert(message, dump_error)
 
 
-## Calls [method Logger.error_dump] on each of the [Logger]s in the project.
-func dump_all():
+## Dumps all logger data to JSON. If save_path is provided, also saves to file.
+## Returns the JSON string representation of the log data.
+func dump_all(save_path := "") -> String:
+	var save_data = {
+		"timestamp": Time.get_unix_time_from_system(),
+		"loggers": {}
+	}
+	
 	for id in _logs.keys():
-		_logs[id].error_dump()
+		save_data.loggers[id] = _logs[id].to_dict()
+	
+	var json_string = JSON.stringify(save_data, "\t")
+	
+	# If a save path is provided, save to file
+	if save_path:
+		var file = FileAccess.open(save_path, FileAccess.WRITE)
+		if file:
+			file.store_string(json_string)
+			print("Logs saved to: " + save_path)
+		else:
+			push_error("Failed to save logs to file: " + save_path)
+	
+	return json_string
 
 
 ## Pass-through to the Global print singleton.

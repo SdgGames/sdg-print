@@ -84,3 +84,23 @@ func get_time_string() -> String:
 ## year, month, day, weekday, hour, minute, second
 func get_datetime() -> Dictionary:
 	return Time.get_datetime_dict_from_unix_time(timestamp)
+
+
+## Returns a dictionary representation of the log entry
+func to_dict() -> Dictionary:
+	return {
+		"timestamp": timestamp,
+		"level": Logger.LogLevel.keys()[level],
+		"module": module,
+		"message": message,
+		"frame_number": frame_number
+	}
+
+
+## Creates a LogEntry from a dictionary
+static func from_dict(data: Dictionary) -> LogEntry:
+	var level_idx = Logger.LogLevel.keys().find(data.level)
+	var entry = LogEntry.new(level_idx, data.module, data.message)
+	entry.timestamp = data.timestamp
+	entry.frame_number = data.frame_number
+	return entry

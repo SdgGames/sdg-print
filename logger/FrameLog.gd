@@ -80,3 +80,12 @@ func to_dict() -> Dictionary:
 		"is_complete": is_complete,
 		"frame_number": frame_number
 	}
+
+
+## Creates a new FrameLog from dictionary data
+static func from_dict(data: Dictionary) -> FrameLog:
+	var frame = FrameLog.new(data.module, data.title, data.details)
+	frame.timestamp = data.timestamp
+	frame.is_complete = data.is_complete
+	frame.frame_number = data.frame_number
+	return frame

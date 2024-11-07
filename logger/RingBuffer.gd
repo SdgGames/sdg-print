@@ -63,3 +63,34 @@ func clear() -> void:
 	_data.resize(capacity)
 	_write_pos = 0
 	_size = 0
+
+
+## Returns a dictionary representation of the buffer with items in chronological order
+func to_dict() -> Dictionary:
+	var items := []
+	# For each LogEntry or FrameLog in the buffer
+	for item in get_all():
+		# Call to_dict() on the item to convert it to a dictionary
+		items.append(item.to_dict())
+	return {
+		"capacity": capacity,
+		"items": items  # Already returns items in chronological order
+	}
+
+
+## Creates a new RingBuffer from dictionary data
+static func from_dict(data: Dictionary) -> RingBuffer:
+	var buffer = RingBuffer.new(data.capacity)
+	# For each dictionary in the saved data
+	for item_data in data.items:
+		# Create new LogEntry or FrameLog based on the stored type
+		var item = null
+		match buffer._item_type:
+			"LogEntry":
+				item = LogEntry.from_dict(item_data)
+			"FrameLog":
+				item = FrameLog.from_dict(item_data)
+			_:
+				push_warning("Unknown type used in Logging RingBuffer. Expect errors.")
+				item = item_data
+	return buffer

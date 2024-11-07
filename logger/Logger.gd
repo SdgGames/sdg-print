@@ -289,6 +289,16 @@ func error_dump():
 	print_rich(message)
 
 
+## Returns just the essential log data as a dictionary
+func to_dict() -> Dictionary:
+	return {
+		"id": id,
+		"log_history": _log_history.to_dict(),
+		"frame_history": _frame_history.to_dict(),
+		"current_frame": _current_frame.to_dict() if _current_frame and _has_frame_changes else null
+	}
+
+
 func _exit_tree():
 	Print._unregister_logger(self)
 
