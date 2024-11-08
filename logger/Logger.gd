@@ -254,7 +254,7 @@ func print_at_level(message: String, level: LogLevel):
 ## Prints the entire message history. This is called automatically from [method error] and
 ## [method throw_assert], but you can dump errors manually if you don't want to add an entry
 ## to the print logs.
-func error_dump():
+func error_print():
 	var divider_color = settings.module_name_color.to_html(false)
 	var message = "[b][color=#%s]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [
 		divider_color,
@@ -287,6 +287,16 @@ func error_dump():
 	
 	_print_console(message)
 	print_rich(message)
+
+
+## Dumps error information to file and returns the JSON string
+func error_dump() -> String:
+	var logger_data = {
+		self.id: self.to_dict()
+	}
+	
+	ErrorDump.save_dump(logger_data, ErrorDump.DumpReason.ERROR)
+	return JSON.stringify(logger_data, "\t")
 
 
 ## Returns just the essential log data as a dictionary

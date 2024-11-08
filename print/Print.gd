@@ -61,9 +61,6 @@ const self_print_level := Logger.LogLevel.SILENT
 ## The default [enum Logger.LogLevel] for archiving from the "Print" logger.
 const self_archive_level := Logger.LogLevel.VERBOSE
 
-## The version of the dump file. We should use this to check for compatability when loading dumps.
-const DUMP_FILE_VERSION = 1
-
 ## Global print settings used as defaults for all loggers without custom settings
 @export var settings: PrintSettings
 
@@ -71,6 +68,9 @@ const DUMP_FILE_VERSION = 1
 @export var warning_count := 0
 ## The number of errors encountered since the game started.
 @export var error_count := 0
+
+## Current session's dump file path
+var current_dump_file: String = ""
 
 # Contains all of the active [Logger]s in the project.
 var _logs := {}
@@ -115,8 +115,8 @@ func _ready():
 			.add_argument("identifier", TYPE_STRING)\
 			.set_description("Dumps all of the print statements for the specified logger.")\
 			.register()
-	console.add_command("dump_all_loggers", self, "dump_loggers")\
-			.set_description("Dumps all of the prints stored in all of the loggers. This can be a LOT of text.")\
+	console.add_command("dump_all_loggers", self, "_dump_loggers")\
+			.set_description("Dumps all of the prints stored in all of the loggers. Dumps to file, but also copies to the clipboard.")\
 			.register()
 	console.add_command("list_loggers", self, "list_loggers")\
 			.set_description("Prints the names of all of the loggers to the console.")\
@@ -217,29 +217,14 @@ func throw_assert(message: String, dump_error := true):
 	_global_logger.throw_assert(message, dump_error)
 
 
-## Dumps all logger data to JSON. If save_path is provided, also saves to file.
-## Returns the JSON string representation of the log data.
-func dump_all(save_path := "") -> String:
-	var save_data = {
-		"timestamp": Time.get_unix_time_from_system(),
-		"loggers": {}
-	}
-	
+## Dumps all logger data and returns the JSON string
+func dump_all() -> String:
+	var logger_data = {}
 	for id in _logs.keys():
-		save_data.loggers[id] = _logs[id].to_dict()
+		logger_data[id] = _logs[id].to_dict()
 	
-	var json_string = JSON.stringify(save_data, "\t")
-	
-	# If a save path is provided, save to file
-	if save_path:
-		var file = FileAccess.open(save_path, FileAccess.WRITE)
-		if file:
-			file.store_string(json_string)
-			print("Logs saved to: " + save_path)
-		else:
-			push_error("Failed to save logs to file: " + save_path)
-	
-	return json_string
+	ErrorDump.save_dump(logger_data, ErrorDump.DumpReason.MANUAL)
+	return JSON.stringify(logger_data, "\t")
 
 
 ## Pass-through to the Global print singleton.
@@ -304,10 +289,13 @@ func list_loggers() -> Array:
 	return _logs.keys()
 
 
-## Calls [Logger.error_dump] on EVERY logger in the project. Be careful, this is a LOT of text.
-func dump_loggers():
-	for id in _logs.keys():
-		_logs[id].error_dump()
+# Calls [Logger.error_dump] on EVERY logger in the project. Be careful, this is a LOT of text.
+func _dump_loggers():
+	var log_string = dump_all()
+	# Get the current contents of the clipboard
+	var current_clipboard = DisplayServer.clipboard_get()
+	# Set the contents of the clipboard
+	DisplayServer.clipboard_set(log_string)
 
 
 # Function for the Console to grab onto. Users can just get the logger first.

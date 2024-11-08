@@ -23,10 +23,10 @@ class_name PrintSettings extends Resource
 
 @export_group("Maximum Log History Sizes")
 ## Maximum number of log entries to keep in history per logger
-@export_range(10, 10000, 10) var max_log_entries := 1000
+@export_range(1, 10000, 10) var max_log_entries := 1000
 
 ## Maximum number of frames to keep in history per logger
-@export_range(10, 1000, 10) var max_frames := 100
+@export_range(1, 1000, 1) var max_frames := 100
 
 @export_group("Log Formatting Options")
 ## Whether to show timestamps in log messages.
@@ -70,15 +70,15 @@ const SETTINGS_PATH = "debug/logging/"
 const DEFAULT_SETTINGS = {
 	"history/max_log_entries": {
 		"type": TYPE_INT,
-		"value": 5000,
+		"value": 1000,
 		"hint": PROPERTY_HINT_RANGE,
-		"hint_string": "10,100000,10"
+		"hint_string": "1,100000,1"
 	},
 	"history/max_frames": {
 		"type": TYPE_INT,
-		"value": 100,
+		"value": 10,
 		"hint": PROPERTY_HINT_RANGE,
-		"hint_string": "2,1000,10"
+		"hint_string": "1,1000,1"
 	},
 	"format/show_timestamps": {
 		"type": TYPE_BOOL,
