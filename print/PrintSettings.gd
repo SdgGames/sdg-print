@@ -72,13 +72,13 @@ const DEFAULT_SETTINGS = {
 		"type": TYPE_INT,
 		"value": 1000,
 		"hint": PROPERTY_HINT_RANGE,
-		"hint_string": "1,100000,1"
+		"hint_string": "1,100000"
 	},
 	"history/max_frames": {
 		"type": TYPE_INT,
-		"value": 10,
+		"value": 100,
 		"hint": PROPERTY_HINT_RANGE,
-		"hint_string": "1,1000,1"
+		"hint_string": "1,1000"
 	},
 	"format/show_timestamps": {
 		"type": TYPE_BOOL,
