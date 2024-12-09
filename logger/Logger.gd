@@ -224,16 +224,8 @@ func get_frame(prepend_title := false) -> String:
 	return _current_frame.format(prepend_title)
 
 
-## Helper function to create and store a log entry
-func _log(level: LogLevel, message: String) -> LogEntry:
-	var entry = LogEntry.new(level, id, message)
-	if archive_level >= level:
-		_log_history.push(entry)
-	return entry
-
-
 ## Prints a message at a specific level. Equivalent to calling [method error], [method info], etc.
-func print_at_level(message: String, level: LogLevel):
+func print_at_level(message: String, level):
 	match level:
 		LogLevel.ERROR:
 			error(message)
@@ -307,6 +299,14 @@ func to_dict() -> Dictionary:
 		"frame_history": _frame_history.to_dict(),
 		"current_frame": _current_frame.to_dict() if _current_frame and _has_frame_changes else null
 	}
+
+
+# Helper function to create and store a log entry
+func _log(level: LogLevel, message: String) -> LogEntry:
+	var entry = LogEntry.new(level, id, message)
+	if archive_level >= level:
+		_log_history.push(entry)
+	return entry
 
 
 func _exit_tree():
