@@ -303,6 +303,7 @@ func _dump_logger(identifier):
 	var logger_id = _get_id(identifier)
 	if _logs.has(logger_id):
 		_logs[logger_id].error_dump()
+		_print_logger.info("Logger %s has been dumped to file.")
 	else:
 		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
 
