@@ -121,6 +121,17 @@ func _ready():
 	console.add_command("list_loggers", self, "list_loggers")\
 			.set_description("Prints the names of all of the loggers to the console.")\
 			.register()
+	console.add_command("clear_all_dumps", self, "_delete_dumps")\
+			.set_description("Deletes all of the dump files in user://dumps.")\
+			.register()
+
+
+# Dump loggers when we detect that the application is exiting.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		# Create the final dump
+		_print_logger.info("Application closing, final dump created")
+		var dump_str = dump_all(ErrorDump.DumpReason.APP_CLOSE)
 
 
 ## Creates and returns the [Logger] instance for the module that matches [param identifier].
@@ -217,14 +228,18 @@ func throw_assert(message: String, dump_error := true):
 	_global_logger.throw_assert(message, dump_error)
 
 
-## Dumps all logger data and returns the JSON string
-func dump_all() -> String:
+## Dumps all logger data and returns the JSON string.
+func dump_all(reason := ErrorDump.DumpReason.MANUAL) -> String:
 	var logger_data = {}
 	for id in _logs.keys():
 		logger_data[id] = _logs[id].to_dict()
 	
-	ErrorDump.save_dump(logger_data, ErrorDump.DumpReason.MANUAL)
-	return JSON.stringify(logger_data, "\t")
+	if ErrorDump.save_dump(logger_data, reason) == OK:
+		_print_logger.info("Dumped all loggers to file.")
+	else:
+		# Do not trigger an error dump when throwing an error here.
+		_print_logger.error("Failed to save dump to file!", false, false)
+	return JSON.stringify(ErrorDump.create_dump_dict(logger_data, reason))
 
 
 ## Pass-through to the Global print singleton.
@@ -289,11 +304,9 @@ func list_loggers() -> Array:
 	return _logs.keys()
 
 
-# Calls [Logger.error_dump] on EVERY logger in the project. Be careful, this is a LOT of text.
+# Function for the Console to grab onto. Calls [Logger.error_dump] on EVERY logger in the project.
 func _dump_loggers():
 	var log_string = dump_all()
-	# Get the current contents of the clipboard
-	var current_clipboard = DisplayServer.clipboard_get()
 	# Set the contents of the clipboard
 	DisplayServer.clipboard_set(log_string)
 
@@ -308,6 +321,11 @@ func _dump_logger(identifier):
 		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
 
 
+# Function for the Console to grab onto.
+func _delete_dumps():
+	ErrorDump.cleanup_old_dumps(0)
+
+
 # Adds a new [Logger] to the logging system. Used by the [Logger] class, use [method create_logger] instead.
 # I set these to private because they are internal to the module, even if they are called from outside the class.
 func _register_logger(logger: Logger):
@@ -317,7 +335,7 @@ func _register_logger(logger: Logger):
 		# Else, we already added this logger in the create_logger call.
 		return
 	_logs[logger.id] = logger
-	_print_logger.info("Registered %s logger of type %s." % [logger.id, Logger.LogType.find_key(logger._log_type).to_camel_case()])
+	_print_logger.debug("Registered %s logger of type %s." % [logger.id, Logger.LogType.find_key(logger._log_type).to_camel_case()])
 	if has_node("/root/Console"):
 		logger._console = $"/root/Console"
 
@@ -327,7 +345,7 @@ func _register_logger(logger: Logger):
 func _unregister_logger(logger: Logger):
 	if logger.id in _logs:
 		_logs.erase(logger.id)
-		_print_logger.info("Un-Registered %s logger of type %s." % [
+		_print_logger.debug("Un-Registered %s logger of type %s." % [
 			logger.id, 
 			Logger.LogType.find_key(logger._log_type).to_camel_case()
 		])

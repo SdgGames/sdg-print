@@ -104,12 +104,12 @@ func start():
 ## Also throws an assert so program execution will halt.
 func assert_that(is_true, message := ""):
 	if !is_true:
-		error(message, true, true)
+		error(message, false, true)
 		assert(false)
 
 
 ## Prints an error to screen and pushes to console.
-## By default, this will dump the entire message history to the console.
+## By default, this will create an error dump as well.
 ## If you just want to print the current error, set [param dump_error] to [code]false[/code].
 func error(message: String, dump_error := true, dump_all := false):
 	Print.error_count += 1
@@ -119,10 +119,10 @@ func error(message: String, dump_error := true, dump_all := false):
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		push_error(message)
-		if dump_error:
-			error_dump()
 		if dump_all:
-			Print.dump_all()
+			Print.dump_all(ErrorDump.DumpReason.ERROR)
+		elif dump_error:
+			error_dump()
 
 
 ## Prints a WARNING to screen and pushes to console.
@@ -281,14 +281,13 @@ func error_print():
 	print_rich(message)
 
 
-## Dumps error information to file and returns the JSON string
-func error_dump() -> String:
+## Dumps error information to file. If we are in the editor, opens the LogViewer panel as well.
+func error_dump() -> Error:
 	var logger_data = {
 		self.id: self.to_dict()
 	}
 	
-	ErrorDump.save_dump(logger_data, ErrorDump.DumpReason.ERROR)
-	return JSON.stringify(logger_data, "\t")
+	return ErrorDump.save_dump(logger_data, ErrorDump.DumpReason.ERROR)
 
 
 ## Returns just the essential log data as a dictionary

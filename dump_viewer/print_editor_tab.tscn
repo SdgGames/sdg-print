@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://cvb0f4ora2d6b"]
+
+[ext_resource type="Script" path="res://addons/sdg-print/dump_viewer/print_editor_tab.gd" id="1_oocas"]
+[ext_resource type="PackedScene" uid="uid://bgqpnmnejfmrv" path="res://addons/sdg-print/dump_viewer/dump_viewer.tscn" id="2_cwk68"]
+
+[node name="PrintEditorTab" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 3
+script = ExtResource("1_oocas")
+
+[node name="DumpViewer" parent="." instance=ExtResource("2_cwk68")]
+layout_mode = 1

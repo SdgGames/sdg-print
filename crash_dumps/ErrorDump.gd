@@ -2,90 +2,67 @@ class_name ErrorDump extends RefCounted
 ## Static class that handles saving and loading of error dump files.
 ## Manages dump file versioning, formatting, and aggregation across game sessions.
 
-## Current version of the dump file format
-const DUMP_FILE_VERSION = 1
+## File used by the dump viewer. This file is only generated when running from the editor.
+const LATEST_DUMP_PATH = "user://dumps/latest_dump.json"
 
 ## Reason codes for why a dump was created
 enum DumpReason {
-	MANUAL = 0,  ## User manually requested dump
-	ERROR = 1,   ## Error triggered dump
-	ASSERT = 2,  ## Assert failure triggered dump
-	SIGNAL = 3,  ## Signal handler triggered dump
-	UNKNOWN = 99 ## Unknown/unspecified reason
+	MANUAL,     ## User manually requested dump
+	ERROR,      ## Error triggered dump
+	APP_CLOSE,  ## Program closed normally with debugging enabled
+	UNSPECIFIED ## Unknown/unspecified reason
 }
-
-
-## Format a reason code into a human-readable string
-static func _reason_to_string(reason: DumpReason) -> String:
-	return DumpReason.keys()[reason].capitalize()
-
-
-## Generates a dump file path for the current game session
-static func _generate_session_file_path() -> String:
-	var datetime = Time.get_datetime_dict_from_system()
-	var file_name = "error_dump_%d%02d%02d_%02d%02d%02d.json" % [
-		datetime.year,
-		datetime.month,
-		datetime.day,
-		datetime.hour,
-		datetime.minute,
-		datetime.second
-	]
-	return "user://dumps/" + file_name
-
-
-## Ensures the dumps directory exists
-static func _ensure_dumps_directory() -> void:
-	var dir = DirAccess.open("user://")
-	if not dir.dir_exists("dumps"):
-		dir.make_dir("dumps")
-
-
-## Creates a standardized dump dictionary with metadata
-static func _create_dump_dict(logger_data: Dictionary, reason: DumpReason) -> Dictionary:
-	return {
-		"version": DUMP_FILE_VERSION,
-		"timestamp": Time.get_unix_time_from_system(),
-		"reason": _reason_to_string(reason),
-		"loggers": logger_data
-	}
 
 
 ## Saves a dump to the current session's dump file
 ## If no session file exists, creates a new one
-static func save_dump(logger_data: Dictionary, reason: DumpReason = DumpReason.UNKNOWN) -> Error:
-	# Make sure we have a dumps directory
+static func save_dump(logger_data: Dictionary, reason: DumpReason = DumpReason.UNSPECIFIED) -> Error:
 	_ensure_dumps_directory()
 	
-	# Get or create session file path
-	var session_path: String = Print.current_dump_file
-	if session_path.is_empty():
-		session_path = _generate_session_file_path()
-		Print.current_dump_file = session_path
+	# Create the dump dictionary once
+	var dump_dict = create_dump_dict(logger_data, reason)
 	
-	# Create the standardized dump dictionary
-	var dump_dict = _create_dump_dict(logger_data, reason)
+	# Handle session file
+	var should_write_session = true
+	if reason == DumpReason.APP_CLOSE:
+		should_write_session = not Print.current_dump_file.is_empty() and FileAccess.file_exists(Print.current_dump_file)
 	
-	# Load existing dumps if file exists
-	var dumps: Array = []
-	if FileAccess.file_exists(session_path):
-		var existing_file = FileAccess.open(session_path, FileAccess.READ)
-		if existing_file:
-			var json = JSON.new()
-			var parse_result = json.parse(existing_file.get_as_text())
-			if parse_result == OK:
-				dumps = json.get_data()
+	if should_write_session:
+		# Get or create session file path
+		var session_path: String = Print.current_dump_file
+		if session_path.is_empty():
+			session_path = _generate_session_file_path()
+			Print.current_dump_file = session_path
+			
+			# Create new file with opening bracket
+			var file = FileAccess.open(session_path, FileAccess.WRITE)
+			if not file:
+				push_error("Failed to create session dump file: " + session_path)
+				return ERR_CANT_CREATE
+			_append_to_file(file, dump_dict, true)
+			
+		else:
+			# Append to existing file
+			var file = FileAccess.open(session_path, FileAccess.READ_WRITE)
+			if not file:
+				push_error("Failed to open session dump file: " + session_path)
+				return ERR_FILE_CANT_OPEN
+				
+			# Seek to just before the last two characters (the newline and closing bracket)
+			file.seek(file.get_length() - 2)
+			_append_to_file(file, dump_dict, false)
 	
-	# Add new dump
-	dumps.append(dump_dict)
+	# Handle latest dump file if we're in the editor
+	if OS.has_feature("editor"):
+		var file = FileAccess.open(LATEST_DUMP_PATH, FileAccess.WRITE)
+		if file:
+			file.store_string("[\n" + JSON.stringify(dump_dict, "\t") + "\n]")
+			file.close()
+			if OS.has_feature("editor") and reason != DumpReason.APP_CLOSE:
+				# Trigger a breakpoint after writing the file. This will cause the editor to open
+				# the Print panel and display the dump that we just generated.
+				breakpoint
 	
-	# Save updated dumps array
-	var file = FileAccess.open(session_path, FileAccess.WRITE)
-	if not file:
-		push_error("Failed to open dump file for writing: " + session_path)
-		return Error.ERR_CANT_CREATE
-	
-	file.store_string(JSON.stringify(dumps, "\t"))
 	return OK
 
 
@@ -112,24 +89,7 @@ static func load_dumps(file_path: String) -> Array:
 		push_error("Invalid dump file format - expected array of dumps")
 		return []
 	
-	# Filter out dumps with incompatible versions
-	var valid_dumps: Array = []
-	for dump in dumps:
-		if not dump is Dictionary:
-			push_warning("Skipping invalid dump entry - not a dictionary")
-			continue
-		
-		if not dump.has("version"):
-			push_warning("Skipping dump without version info")
-			continue
-		
-		if dump.version != DUMP_FILE_VERSION:
-			push_warning("Skipping incompatible dump version: %d" % dump.version)
-			continue
-		
-		valid_dumps.append(dump)
-	
-	return valid_dumps
+	return dumps
 
 
 ## Lists all dump files in the dumps directory
@@ -162,3 +122,42 @@ static func cleanup_old_dumps(keep_count: int = 10) -> void:
 		var dir = DirAccess.open("user://dumps")
 		if dir:
 			dir.remove(file_path)
+
+
+## Creates a standardized dump dictionary with metadata
+static func create_dump_dict(logger_data: Dictionary, reason: DumpReason) -> Dictionary:
+	return {
+		"timestamp": Time.get_unix_time_from_system(),
+		"reason": DumpReason.keys()[reason].capitalize(),
+		"loggers": logger_data
+	}
+
+
+# Generates a dump file path for the current game session
+static func _generate_session_file_path() -> String:
+	var datetime = Time.get_datetime_dict_from_system()
+	var file_name = "error_dump_%d%02d%02d_%02d%02d%02d.json" % [
+		datetime.year,
+		datetime.month,
+		datetime.day,
+		datetime.hour,
+		datetime.minute,
+		datetime.second
+	]
+	return "user://dumps/" + file_name
+
+
+# Add this dump to the current file. Add the appropriate punctuation for the array.
+static func _append_to_file(file: FileAccess, dump_dict: Dictionary, is_first: bool) -> void:
+	var json_str = JSON.stringify(dump_dict, "\t")
+	if is_first:
+		file.store_string("[\n" + json_str + "\n]")
+	else:
+		file.store_string(",\n" + json_str + "\n]")
+
+
+# Ensures the dumps directory exists
+static func _ensure_dumps_directory() -> void:
+	var dir = DirAccess.open("user://")
+	if not dir.dir_exists("dumps"):
+		dir.make_dir("dumps")
