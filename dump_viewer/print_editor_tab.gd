@@ -1,7 +1,7 @@
 @tool
 extends Control
 
-@onready var active_dump: DumpViewer = $"HBox/Tabs/Active Dump"
+@onready var active_dump: DumpViewer = $"Tabs/Active Dump"
 
 
 func _ready():

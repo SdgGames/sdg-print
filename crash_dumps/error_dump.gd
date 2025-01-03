@@ -62,8 +62,8 @@ static func save_dump(logger_data: Dictionary, reason: DumpReason = DumpReason.U
 				# Trigger a breakpoint after writing the file. This will cause the editor to open
 				# the Print panel and display the dump that we just generated.
 				#TODO: move back to editor once we are done developing in the game window.
-				show_debug_window()
-				#breakpoint
+				#show_debug_window()
+				breakpoint
 	
 	return OK
 

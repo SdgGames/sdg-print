@@ -13,38 +13,18 @@ grow_vertical = 2
 size_flags_vertical = 3
 script = ExtResource("1_oocas")
 
-[node name="HBox" type="HBoxContainer" parent="."]
+[node name="Tabs" type="TabContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-
-[node name="Sidebar" type="VBoxContainer" parent="HBox"]
-layout_mode = 2
-
-[node name="Menu" type="HBoxContainer" parent="HBox/Sidebar"]
-layout_mode = 2
-
-[node name="Button" type="Button" parent="HBox/Sidebar/Menu"]
-layout_mode = 2
-text = "Load Thing"
-
-[node name="VSeparator" type="VSeparator" parent="HBox/Sidebar/Menu"]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="HBox/Sidebar"]
-layout_mode = 2
-text = "This is a sidebar menu. Put stuff here."
-
-[node name="Tabs" type="TabContainer" parent="HBox"]
-layout_mode = 2
 size_flags_horizontal = 3
 current_tab = 0
 drag_to_rearrange_enabled = true
 
-[node name="Active Dump" parent="HBox/Tabs" instance=ExtResource("2_cwk68")]
+[node name="Active Dump" parent="Tabs" instance=ExtResource("2_cwk68")]
 layout_mode = 2
 size_flags_vertical = 3
 metadata/_tab_index = 0
