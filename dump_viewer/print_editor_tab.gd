@@ -1,7 +1,7 @@
 @tool
 extends Control
 
-@onready var dump_viewer: DumpViewer = $DumpViewer
+@onready var active_dump: DumpViewer = $"HBox/Tabs/Active Dump"
 
 
 func _ready():
@@ -10,4 +10,4 @@ func _ready():
 
 
 func load_latest_dump(path: String):
-	dump_viewer.load_dump_file(path)
+	active_dump.load_dump_file(path)

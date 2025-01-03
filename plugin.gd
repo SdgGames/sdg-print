@@ -15,13 +15,13 @@ extends EditorPlugin
 const PluginName := "Print"
 
 ## Path to the Print singleton scene
-const PluginPath := "res://addons/sdg-print/print/Print.tscn"
+const PluginPath := "res://addons/sdg-print/print/print.tscn"
 
 ## Path to the editor tab scene for viewing dumps
 const PRINT_EDITOR_TAB := preload("res://addons/sdg-print/dump_viewer/print_editor_tab.tscn")
 
 ## Icon for the Print tab in the editor
-const PRINT_TAB_ICON := preload("res://addons/sdg-print/dump_viewer/Print_Tab_icon.svg")
+const PRINT_TAB_ICON := preload("res://addons/sdg-print/dump_viewer/print_tab_icon.svg")
 
 ## Instance of the editor tab for viewing dumps
 var editor_tab: Control

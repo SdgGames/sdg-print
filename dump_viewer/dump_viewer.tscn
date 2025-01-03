@@ -1,6 +1,9 @@
-[gd_scene load_steps=2 format=3 uid="uid://bgqpnmnejfmrv"]
+[gd_scene load_steps=3 format=3 uid="uid://bgqpnmnejfmrv"]
 
 [ext_resource type="Script" path="res://addons/sdg-print/dump_viewer/dump_viewer.gd" id="1_nakp4"]
+
+[sub_resource type="SystemFont" id="SystemFont_xd3nu"]
+font_names = PackedStringArray("Source Code Pro")
 
 [node name="DumpViewer" type="Control"]
 layout_mode = 3
@@ -18,4 +21,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_fonts/normal_font = SubResource("SystemFont_xd3nu")
+bbcode_enabled = true
 text = "Warning: No error dump was loaded!"

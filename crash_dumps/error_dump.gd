@@ -61,9 +61,58 @@ static func save_dump(logger_data: Dictionary, reason: DumpReason = DumpReason.U
 			if OS.has_feature("editor") and reason != DumpReason.APP_CLOSE:
 				# Trigger a breakpoint after writing the file. This will cause the editor to open
 				# the Print panel and display the dump that we just generated.
-				breakpoint
+				#TODO: move back to editor once we are done developing in the game window.
+				show_debug_window()
+				#breakpoint
 	
 	return OK
+
+
+# Temporary debug function to show the print editor tab in a window
+static func show_debug_window() -> void:
+	# Create window
+	var window = Window.new()
+	window.title = "Print Debug Viewer"
+	
+	# Get the game window size and position
+	var game_window = Engine.get_main_loop().root.get_window()
+	var screen_size = DisplayServer.screen_get_size()
+	
+	# Set size to 95% of game window size
+	window.size = Vector2i(
+		int(game_window.size.x * 0.95),
+		int(game_window.size.y * 0.95)
+	)
+	
+	# Center on screen
+	window.position = Vector2i(
+		(screen_size.x - window.size.x) / 2,
+		(screen_size.y - window.size.y) / 2
+	)
+	
+	# Enable window features
+	window.unresizable = false
+	window.min_size = Vector2i(400, 300)  # Set minimum size
+	window.max_size = Vector2i(0, 0)  # No maximum size (0,0 means unlimited)
+	window.mode = Window.MODE_WINDOWED  # Start in windowed mode
+	window.borderless = false
+	window.always_on_top = true  # Keep above game window
+	window.transparent = false
+	window.close_requested.connect(func(): window.queue_free())
+	
+	# Load and add print editor tab
+	var editor_tab_scene = load("res://addons/sdg-print/dump_viewer/print_editor_tab.tscn")
+	var editor_tab = editor_tab_scene.instantiate()
+	window.add_child(editor_tab)
+	
+	# Make editor tab fill window
+	editor_tab.anchors_preset = Control.PRESET_FULL_RECT
+	
+	# Add window to scene tree
+	Engine.get_main_loop().root.add_child(window)
+	
+	# Load the latest dump
+	editor_tab.load_latest_dump(LATEST_DUMP_PATH)
 
 
 ## Loads and validates all dumps from a file
@@ -129,6 +178,7 @@ static func create_dump_dict(logger_data: Dictionary, reason: DumpReason) -> Dic
 	return {
 		"timestamp": Time.get_unix_time_from_system(),
 		"reason": DumpReason.keys()[reason].capitalize(),
+		"module_width": Print._current_module_width,
 		"loggers": logger_data
 	}
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bfyn3dcyb6xre"
-path="res://.godot/imported/Print_Tab_icon.svg-cf12327d3be2a9088709e21a5e908d1f.ctex"
+path="res://.godot/imported/print_tab_icon.svg-0033611bcf41f3fbefd1113c26042539.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/sdg-print/dump_viewer/Print_Tab_icon.svg"
-dest_files=["res://.godot/imported/Print_Tab_icon.svg-cf12327d3be2a9088709e21a5e908d1f.ctex"]
+source_file="res://addons/sdg-print/dump_viewer/print_tab_icon.svg"
+dest_files=["res://.godot/imported/print_tab_icon.svg-0033611bcf41f3fbefd1113c26042539.ctex"]
 
 [params]
 

@@ -33,6 +33,9 @@ func _init(level: Logger.LogLevel, module: String, message: String):
 ## This maintains compatibility with the existing print system's formatting.
 func format(settings: PrintSettings) -> String:
 	var formatted_message := ""
+	var module_width = settings.max_module_width
+	if !Engine.is_editor_hint():
+		module_width = Print._current_module_width
 	
 	# Add timestamp if enabled
 	if settings.show_timestamps:
@@ -51,7 +54,7 @@ func format(settings: PrintSettings) -> String:
 	if settings.show_module_names:
 		formatted_message += "[b][color=#%s]%-*s[/color][/b] " % [
 			settings.module_name_color.to_html(false),
-			Print._current_module_width if Print else settings.max_module_width,
+			module_width,
 			module
 		]
 	
