@@ -10,10 +10,11 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+size_flags_vertical = 3
 script = ExtResource("1_nakp4")
 
 [node name="Scroll" type="ScrollContainer" parent="."]
-custom_minimum_size = Vector2(400, 0)
+custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 horizontal_scroll_mode = 0
 
@@ -32,13 +33,19 @@ right_icon = ExtResource("2_u88hd")
 layout_mode = 2
 text = "Refresh"
 
+[node name="CollateButton" type="CheckButton" parent="Scroll/Sidebar"]
+layout_mode = 2
+text = "Collate Modules"
+alignment = 1
+
 [node name="Tree" type="Tree" parent="."]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-columns = 4
+columns = 5
 column_titles_visible = true
 allow_search = false
 hide_root = true
 
 [connection signal="pressed" from="Scroll/Sidebar/Refresh" to="." method="_on_refresh_pressed"]
+[connection signal="toggled" from="Scroll/Sidebar/CollateButton" to="." method="_on_collate_button_toggled"]

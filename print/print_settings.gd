@@ -70,7 +70,7 @@ class_name PrintSettings extends Resource
 @export var frame_number_color := Color.LIGHT_STEEL_BLUE
 
 ## Color used for the frame data in the debug viewer.
-@export var frame_data_color := Color.PALE_GREEN
+@export var frame_data_color := Color.LIME_GREEN
 
 ## Color used for the module name component in log messages.
 @export var module_name_color := Color.MAGENTA

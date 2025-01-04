@@ -9,7 +9,7 @@ class LoggerData extends RefCounted:
 	
 	func _init(logger_id: StringName):
 		id = logger_id
-		
+	
 	## Load logger data from a dictionary
 	func load_from_dict(data: Dictionary) -> void:
 		# Load log history
@@ -17,7 +17,7 @@ class LoggerData extends RefCounted:
 		# Load frame history
 		frame_history = RingBuffer.from_dict(data.frame_history, LogEntry.from_dict.bind(id))
 	
-	## Get all entries, optionally filtered by level
+	## Get all entries, optionally filtered by level, sorted by timestamp (newest first)
 	func get_entries(min_level := Logger.LogLevel.VERBOSE, append_frames := false) -> Array[LogEntry]:
 		var entries: Array[LogEntry] = []
 		
@@ -26,9 +26,15 @@ class LoggerData extends RefCounted:
 			if entry.level <= min_level:
 				entries.append(entry)
 		
-		# Add frame entries that meet the minimum level
+		# Add frame entries
 		for entry in frame_history.get_all():
-				entries.append(entry)
+			entries.append(entry)
+		
+		# Sort by timestamp, newest first
+		entries.sort_custom(
+			func(a: LogEntry, b: LogEntry) -> bool:
+				return a.timestamp > b.timestamp
+		)
 		
 		return entries
 
@@ -57,21 +63,42 @@ func load_from_dict(data: Dictionary) -> bool:
 
 
 ## Get all entries from all loggers in chronological order
-func get_all_entries() -> Array[LogEntry]:
+## If collated is false, entries are grouped by module
+func get_all_entries(collated := true) -> Array[LogEntry]:
+	if collated:
+		return _get_collated_entries()
+	else:
+		return _get_module_grouped_entries()
+
+
+## Get all entries sorted only by timestamp (newest first)
+func _get_collated_entries() -> Array[LogEntry]:
 	var all_entries: Array[LogEntry] = []
 	
 	# Collect all entries from all loggers
 	for logger in loggers.values():
-		# Add regular log entries
-		all_entries.append_array(logger.log_history.get_all())
-		
-		# Add frame entries
-		all_entries.append_array(logger.frame_history.get_all())
+		all_entries.append_array(logger.get_entries())
 	
-	# Sort by timestamp
+	# Sort by timestamp, newest first
 	all_entries.sort_custom(
 		func(a: LogEntry, b: LogEntry) -> bool:
-			return a.timestamp < b.timestamp
+			return a.timestamp > b.timestamp
 	)
+	
+	return all_entries
+
+
+## Get all entries grouped by module, then sorted by timestamp (newest first)
+func _get_module_grouped_entries() -> Array[LogEntry]:
+	var all_entries: Array[LogEntry] = []
+	
+	# Get a sorted list of module IDs for consistent ordering
+	var module_ids = loggers.keys()
+	module_ids.sort()
+	
+	# Add entries module by module
+	for module_id in module_ids:
+		var logger = loggers[module_id]
+		all_entries.append_array(logger.get_entries())
 	
 	return all_entries

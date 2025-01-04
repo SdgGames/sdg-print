@@ -121,12 +121,13 @@ func error(message: String, dump_error := true):
 		_print_console(formatted)
 		print_rich(formatted)
 	if dump_error:
-		Print.dump_all(ErrorDump.DumpReason.ERROR)
+		Print.flush_logs(message, ErrorDump.DumpReason.ERROR)
 	push_error(message)
 
 
-## Prints a WARNING to screen and pushes to console.
-func warning(message: String):
+## Prints a WARNING to screen and pushes to console. By default, this will not
+## create an error dump. If you want to dump, set [param dump_warning] to true.
+func warning(message: String, dump_warning := false):
 	Print.warning_count += 1
 	var entry = _log(LogLevel.WARNING, message)
 	
@@ -134,6 +135,8 @@ func warning(message: String):
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		print_rich(formatted)
+	if dump_warning:
+		Print.flush_logs(message, ErrorDump.DumpReason.WARNING)
 	push_warning(message)
 
 
@@ -237,15 +240,6 @@ func print_at_level(message: String, level):
 			error("Attempted to print at ''SILENT'' logging level.")
 		_:
 			error("Attempted to print at an invalid logging level.")
-
-
-## Dumps error information to file. If we are in the editor, opens the LogViewer panel as well.
-func error_dump() -> Error:
-	var logger_data = {
-		self.id: self.to_dict()
-	}
-	
-	return ErrorDump.save_dump(logger_data, ErrorDump.DumpReason.ERROR)
 
 
 ## Returns just the essential log data as a dictionary

@@ -116,10 +116,6 @@ func _ready():
 	console.add_command("silence_non_error_prints", self, "silence_non_error_printing")\
 			.set_description("Disables all non-error printing.")\
 			.register()
-	console.add_command("dump_logger", self, "_dump_logger")\
-			.add_argument("identifier", TYPE_STRING)\
-			.set_description("Dumps all of the print statements for the specified logger.")\
-			.register()
 	console.add_command("dump_all_loggers", self, "_dump_loggers")\
 			.set_description("Dumps all of the prints stored in all of the loggers. Dumps to file, but also copies to the clipboard.")\
 			.register()
@@ -136,7 +132,7 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		# Create the final dump
 		_print_logger.info("Application closing, final dump created")
-		var dump_str = dump_all(ErrorDump.DumpReason.APP_CLOSE)
+		var dump_str = flush_logs("", ErrorDump.DumpReason.APP_CLOSE)
 
 
 ## Creates and returns the [Logger] instance for the module that matches [param identifier].
@@ -233,8 +229,11 @@ func throw_assert(message: String, dump_error := true):
 	_global_logger.throw_assert(message, dump_error)
 
 
-## Dumps all logger data and returns the JSON string.
-func dump_all(reason := ErrorDump.DumpReason.MANUAL, context := "") -> String:
+## Dumps all logger data to disk, then resets all loggers.
+## Use this if you just logged a lot of data (like generating a world, etc.)
+## Use [param context] to indicate why this flush was performed. This will appear
+## at the top of the dump log in the viewer.
+func flush_logs(context := "", reason := ErrorDump.DumpReason.FLUSH):
 	var logger_data = {}
 	for id in _logs.keys():
 		logger_data[id] = _logs[id].to_dict()
@@ -244,15 +243,6 @@ func dump_all(reason := ErrorDump.DumpReason.MANUAL, context := "") -> String:
 	else:
 		# Do not trigger an error dump when throwing an error here.
 		_print_logger.error("Failed to save dump to file!", false)
-	return JSON.stringify(ErrorDump.create_dump_dict(logger_data, reason, context))
-
-
-## Dumps all logger data to disk, then resets all loggers.
-## Use this if you just logged a lot of data (like generating a world, etc.)
-## Use [param context] to indicate why this flush was performed. This will appear
-## at the top of the dump log in the viewer.
-func flush(context := ""):
-	dump_all(ErrorDump.DumpReason.FLUSH, context)
 	start_all()
 
 
@@ -320,19 +310,7 @@ func list_loggers() -> Array:
 
 # Function for the Console to grab onto. Calls [Logger.error_dump] on EVERY logger in the project.
 func _dump_loggers():
-	var log_string = dump_all()
-	# Set the contents of the clipboard
-	DisplayServer.clipboard_set(log_string)
-
-
-# Function for the Console to grab onto. Users can just get the logger first.
-func _dump_logger(identifier):
-	var logger_id = _get_id(identifier)
-	if _logs.has(logger_id):
-		_logs[logger_id].error_dump()
-		_print_logger.info("Logger %s has been dumped to file.")
-	else:
-		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
+	var log_string = flush_logs("User initiated dump from console.", ErrorDump.DumpReason.MANUAL)
 
 
 # Function for the Console to grab onto.

@@ -7,11 +7,12 @@ const LATEST_DUMP_PATH = "user://dumps/latest_dump.json"
 
 ## Reason codes for why a dump was created
 enum DumpReason {
-	FLUSH,      ## Routine dump to disk. Do not raise an error, nothing is wrong!
-	MANUAL,     ## User manually requested dump
-	ERROR,      ## Error triggered dump
-	APP_CLOSE,  ## Program closed normally with debugging enabled
-	UNSPECIFIED ## Unknown/unspecified reason
+	FLUSH,       ## Routine dump to disk. Do not raise an error, nothing is wrong!
+	MANUAL,      ## User manually requested dump
+	APP_CLOSE,   ## Program closed normally with debugging enabled
+	WARNING,     ## Warning triggered dump
+	ERROR,       ## Error triggered dump
+	UNSPECIFIED, ## Unknown/unspecified reason
 }
 
 
@@ -50,7 +51,7 @@ static func save_dump(logger_data: Dictionary, reason := DumpReason.UNSPECIFIED,
 		show_debug_window(session_path)
 	
 	# Mirror to latest dump file if we're in the editor.
-	if OS.has_feature("editor") and reason >= DumpReason.ERROR:
+	if OS.has_feature("editor") and reason >= DumpReason.APP_CLOSE:
 		# Copy the entire session file to latest_dump
 		var session_file = FileAccess.open(session_path, FileAccess.READ)
 		var latest_file = FileAccess.open(LATEST_DUMP_PATH, FileAccess.WRITE)
@@ -60,7 +61,9 @@ static func save_dump(logger_data: Dictionary, reason := DumpReason.UNSPECIFIED,
 			latest_file.close()
 			session_file.close()
 			
-			breakpoint
+			# Pause execution and load the dump in the editor immediately.
+			if reason >= DumpReason.WARNING:
+				breakpoint
 	return OK
 
 
