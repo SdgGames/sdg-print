@@ -28,6 +28,9 @@ class_name PrintSettings extends Resource
 ## Maximum number of frames to keep in history per logger
 @export_range(1, 1000, 1) var max_frames := 100
 
+## Maxumum number of log files to keep on disk. -1 means that we never clean automatically.
+@export_range(-1, 100, 1) var max_log_files := 15
+
 @export_group("Log Formatting Options")
 ## Whether to show timestamps in log messages.
 @export var show_timestamps := true
@@ -38,7 +41,8 @@ class_name PrintSettings extends Resource
 ## Whether to show log levels (ERROR, WARNING, etc.) in log messages.
 @export var show_log_levels := true
 
-## Maximum width allowed for module names in the output.
+## Maximum character count allowed for module names in the output.
+## Longer names will be displayed, but shorter names will not be padded past this value.
 @export_range(1, 100, 1, "or_greater") var max_module_width := 20
 
 
@@ -79,6 +83,12 @@ const DEFAULT_SETTINGS = {
 		"value": 100,
 		"hint": PROPERTY_HINT_RANGE,
 		"hint_string": "1,1000"
+	},
+	"history/max_log_files": {
+		"type": TYPE_INT,
+		"value": 15,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "-1,100"
 	},
 	"format/show_timestamps": {
 		"type": TYPE_BOOL,
@@ -166,6 +176,7 @@ static func from_project_settings() -> PrintSettings:
 func load_from_project_settings() -> void:
 	max_log_entries = ProjectSettings.get_setting(SETTINGS_PATH + "history/max_log_entries")
 	max_frames = ProjectSettings.get_setting(SETTINGS_PATH + "history/max_frames")
+	max_log_files = ProjectSettings.get_setting(SETTINGS_PATH + "history/max_log_files")
 	
 	show_timestamps = ProjectSettings.get_setting(SETTINGS_PATH + "format/show_timestamps")
 	show_module_names = ProjectSettings.get_setting(SETTINGS_PATH + "format/show_module_names")

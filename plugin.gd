@@ -18,10 +18,10 @@ const PluginName := "Print"
 const PluginPath := "res://addons/sdg-print/print/print.tscn"
 
 ## Path to the editor tab scene for viewing dumps
-const PRINT_EDITOR_TAB := preload("res://addons/sdg-print/dump_viewer/print_editor_tab.tscn")
+const PRINT_EDITOR_TAB = preload("res://addons/sdg-print/print_panel/print_editor_tab.tscn")
 
 ## Icon for the Print tab in the editor
-const PRINT_TAB_ICON := preload("res://addons/sdg-print/dump_viewer/print_tab_icon.svg")
+const PRINT_TAB_ICON = preload("res://addons/sdg-print/print_panel/print_tab_icon.svg")
 
 ## Instance of the editor tab for viewing dumps
 var editor_tab: Control
@@ -85,6 +85,11 @@ func _get_plugin_icon() -> Texture2D:
 ## If [param grab_focus] is true, switches to the Print tab after loading.
 ## Uses a delay to ensure proper UI updates when switching tabs.
 func load_latest_dump(grab_focus := true) -> void:
+	# TODO: Let this grab focus again. We are currently developing this, so there might
+	# be bugs in the crash report window itself.
+	return
+	grab_focus = false
+	
 	# Prevent multiple simultaneous loads
 	if loading_dump:
 		return

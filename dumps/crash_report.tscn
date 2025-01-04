@@ -1,9 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://cvb0f4ora2d6b"]
+[gd_scene load_steps=3 format=3 uid="uid://dau13b1rjwu1t"]
 
-[ext_resource type="Script" path="res://addons/sdg-print/dump_viewer/print_editor_tab.gd" id="1_oocas"]
-[ext_resource type="PackedScene" uid="uid://bgqpnmnejfmrv" path="res://addons/sdg-print/dump_viewer/dump_viewer.tscn" id="2_cwk68"]
+[ext_resource type="Script" path="res://addons/sdg-print/dumps/crash_report.gd" id="1_hv0qm"]
+[ext_resource type="PackedScene" uid="uid://bgqpnmnejfmrv" path="res://addons/sdg-print/dumps/dump_viewer.tscn" id="2_wuac6"]
 
-[node name="PrintEditorTab" type="Control"]
+[node name="CrashReport" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,7 +11,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_vertical = 3
-script = ExtResource("1_oocas")
+script = ExtResource("1_hv0qm")
 
 [node name="Tabs" type="TabContainer" parent="."]
 layout_mode = 1
@@ -24,7 +24,7 @@ size_flags_horizontal = 3
 current_tab = 0
 drag_to_rearrange_enabled = true
 
-[node name="Active Dump" parent="Tabs" instance=ExtResource("2_cwk68")]
+[node name="Active Dump" parent="Tabs" instance=ExtResource("2_wuac6")]
 layout_mode = 2
 size_flags_vertical = 3
 metadata/_tab_index = 0

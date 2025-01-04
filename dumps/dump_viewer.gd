@@ -9,8 +9,11 @@ enum Columns {
 }
 
 @onready var tree: Tree = $Tree
-@onready var sidebar: VBoxContainer = $Sidebar
+@onready var sidebar: VBoxContainer = $Scroll/Sidebar
 var print_settings: PrintSettings
+
+# Current dump data
+var _current_dumps: Array[DumpData]
 
 
 func _ready():
@@ -45,95 +48,91 @@ func setup_tree():
 	
 	# Show column titles
 	tree.set_column_titles_visible(true)
-	
 	tree.hide_root = true
 
 
-func load_dump_file(file_path: String) -> void:
+func load_dump_file(path: String):
 	setup_tree()  # Clear and reset the tree
 	
-	if not FileAccess.file_exists(file_path):
-		create_error_item("Error: Could not find dump file at %s" % file_path)
-		return
-		
-	var dumps = ErrorDump.load_dumps(file_path)
-	if dumps.is_empty():
-		create_error_item("Error: No valid dumps found in file")
+	# Load dumps using ErrorDump
+	_current_dumps = ErrorDump.load_dumps(path)
+	if _current_dumps.is_empty():
+		create_error_item("No valid dumps found in file")
 		return
 	
-	var root = tree.create_item()  # Hidden root
+	refresh_tree()
+
+
+func refresh_tree() -> void:
+	# Clear existing items
+	tree.clear()
+	var root = tree.create_item()
 	
-	# Create a tree item for each dump
-	for dump_index in range(dumps.size()):
-		var dump = dumps[dump_index]
+	if _current_dumps.is_empty():
+		create_error_item("No dump data loaded")
+		return
+	
+	# Process each dump in the file
+	for dump_index in range(_current_dumps.size()):
+		var dump = _current_dumps[dump_index]
 		add_dump_to_tree(dump, root, dump_index)
 
 
-func add_dump_to_tree(dump: Dictionary, parent: TreeItem, dump_index: int) -> void:
-	var dump_time = format_timestamp(dump.timestamp)
+func add_dump_to_tree(dump: DumpData, parent: TreeItem, dump_index: int) -> void:
+	# Create dump header
 	var dump_item = tree.create_item(parent)
+	var dump_time = format_timestamp(dump.metadata.timestamp)
 	
-	# Format the dump header
-	var header_text = "Dump %d (Reason: %s)" % [
+	# Get all entries chronologically
+	var entries = dump.get_all_entries()
+	var header_text = "Dump %d (Reason: %s, %d entries)" % [
 		dump_index + 1,
-		dump.reason
+		dump.metadata.reason,
+		entries.size()
 	]
 	
-	# Set the header across all columns
+	# Set header
 	dump_item.set_text(Columns.TIMESTAMP, dump_time)
 	dump_item.set_text(Columns.MESSAGE, header_text)
 	
-	# Color the entire header row
+	# Color the header row
 	for col in range(tree.columns):
 		dump_item.set_custom_color(col, Color.YELLOW)
 	
-	# Make the dump header expandable
-	dump_item.set_collapsed(false)  # Start expanded
+	dump_item.collapsed = false
 	
-	# Add log entries for each logger
-	var total_entries = 0
-	for logger_id in dump.loggers:
-		var logger_data = dump.loggers[logger_id]
-		if not logger_data.log_history.items.is_empty():
-			total_entries += add_logger_entries(logger_data, dump_item)
-	
-	# Update the header to show entry count
-	header_text += " (%d entries)" % total_entries
-	dump_item.set_text(Columns.MESSAGE, header_text)
+	# Add all entries chronologically
+	for entry in entries:
+		add_entry_to_tree(entry, dump_item)
 
 
-func add_logger_entries(logger_data: Dictionary, parent: TreeItem) -> int:
-	var entries_added = 0
+func add_entry_to_tree(entry: LogEntry, parent: TreeItem) -> void:
+	var entry_item = tree.create_item(parent)
 	
-	# Process each log entry
-	for entry_data in logger_data.log_history.items:
-		var level_idx = Logger.LogLevel.keys().find(entry_data.level)
-		if level_idx == -1:
-			push_warning("Invalid log level found in dump: " + entry_data.level)
-			continue
-		
-		# Create tree item for this entry
-		var entry_item = tree.create_item(parent)
-		
-		# Set each column's content
-		entry_item.set_text(Columns.TIMESTAMP, format_time(entry_data.timestamp))
-		entry_item.set_text(Columns.LEVEL, entry_data.level)
-		entry_item.set_text(Columns.MODULE, entry_data.module)
-		entry_item.set_text(Columns.MESSAGE, entry_data.message)
-		
-		# Color code based on log level
-		var level_color = get_level_color(level_idx)
-		entry_item.set_custom_color(Columns.LEVEL, level_color)
-		
-		# Color code the module name
-		entry_item.set_custom_color(Columns.MODULE, print_settings.module_name_color)
-		
-		# Color code timestamp
-		entry_item.set_custom_color(Columns.TIMESTAMP, print_settings.timestamp_color)
-		
-		entries_added += 1
+	# Set each column's content
+	entry_item.set_text(Columns.TIMESTAMP, format_time(entry.timestamp))
+	entry_item.set_text(Columns.LEVEL, Logger.LogLevel.keys()[entry.level])
+	entry_item.set_text(Columns.MODULE, entry.module)
+	entry_item.set_text(Columns.MESSAGE, entry.message)
 	
-	return entries_added
+	# Color code based on log level
+	var level_color = get_level_color(entry.level)
+	entry_item.set_custom_color(Columns.LEVEL, level_color)
+	
+	# Color code the module name and timestamp
+	entry_item.set_custom_color(Columns.MODULE, print_settings.module_name_color)
+	entry_item.set_custom_color(Columns.TIMESTAMP, print_settings.timestamp_color)
+	
+	# If this entry has frame data, add it as a child
+	if entry.current_frame != null:
+		var frame_item = tree.create_item(entry_item)
+		frame_item.set_text(Columns.MESSAGE, entry.current_frame.format(false))
+		# Indent frame data for better visibility
+		frame_item.set_text(Columns.MODULE, "  ")  # Add some space for indentation
+		
+		# Use a slightly different color for frame data
+		for col in range(tree.columns):
+			frame_item.set_custom_color(col, print_settings.debug_color.darkened(0.2))
 
 
 func create_error_item(error_message: String) -> void:
@@ -146,6 +145,7 @@ func create_error_item(error_message: String) -> void:
 		error_item.set_custom_color(col, Color.RED)
 
 
+# Helper functions for formatting
 func format_timestamp(unix_time: float) -> String:
 	var datetime = Time.get_datetime_dict_from_unix_time(unix_time)
 	return "%04d-%02d-%02d %02d:%02d:%02d" % [

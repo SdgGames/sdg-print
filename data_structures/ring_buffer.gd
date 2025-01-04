@@ -3,8 +3,11 @@ class_name RingBuffer extends RefCounted
 ##
 ## RingBuffer maintains a fixed number of elements in a circular fashion.
 ## When the buffer is full, adding new elements overwrites the oldest ones.
-## This is used internally by the [Logger] class to maintain history of logs
-## and frame data without unbounded memory growth.
+##
+## RingBuffers can store any type of data. However, items should have a
+## [method to_dict] method if you want to save a buffer to a dictionary. You
+## can load a buffer from a dictionary as well, as long as you supply a factory
+## method for loading the element from a dictionary.
 
 ## The maximum number of elements this buffer can hold
 var capacity: int
@@ -78,19 +81,13 @@ func to_dict() -> Dictionary:
 	}
 
 
-## Creates a new RingBuffer from dictionary data
-static func from_dict(data: Dictionary) -> RingBuffer:
+## Creates a new RingBuffer from dictionary data. [param item_factory] is the item's
+## [method from_dict] function or similar. This method should take a dictionary as its
+## only argument and return a new item of the expected type.
+static func from_dict(data: Dictionary, item_factory: Callable) -> RingBuffer:
 	var buffer = RingBuffer.new(data.capacity)
 	# For each dictionary in the saved data
 	for item_data in data.items:
 		# Create new LogEntry or FrameLog based on the stored type
-		var item = null
-		match buffer._item_type:
-			"LogEntry":
-				item = LogEntry.from_dict(item_data)
-			"FrameLog":
-				item = FrameLog.from_dict(item_data)
-			_:
-				push_warning("Unknown type used in Logging RingBuffer. Expect errors.")
-				item = item_data
+		buffer.push(item_factory.call(item_data))
 	return buffer

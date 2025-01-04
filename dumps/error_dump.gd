@@ -7,6 +7,7 @@ const LATEST_DUMP_PATH = "user://dumps/latest_dump.json"
 
 ## Reason codes for why a dump was created
 enum DumpReason {
+	FLUSH,      ## Routine dump to disk. Do not raise an error, nothing is wrong!
 	MANUAL,     ## User manually requested dump
 	ERROR,      ## Error triggered dump
 	APP_CLOSE,  ## Program closed normally with debugging enabled
@@ -16,54 +17,53 @@ enum DumpReason {
 
 ## Saves a dump to the current session's dump file
 ## If no session file exists, creates a new one
-static func save_dump(logger_data: Dictionary, reason: DumpReason = DumpReason.UNSPECIFIED) -> Error:
+static func save_dump(logger_data: Dictionary, reason := DumpReason.UNSPECIFIED, context := "") -> Error:
 	_ensure_dumps_directory()
 	
 	# Create the dump dictionary once
-	var dump_dict = create_dump_dict(logger_data, reason)
+	var dump_dict = create_dump_dict(logger_data, reason, context)
 	
 	# Handle session file
-	var should_write_session = true
-	if reason == DumpReason.APP_CLOSE:
-		should_write_session = not Print.current_dump_file.is_empty() and FileAccess.file_exists(Print.current_dump_file)
+	var session_path: String = Print.current_dump_file
+	if session_path.is_empty():
+		session_path = _generate_session_file_path()
+		Print.current_dump_file = session_path
+		
+		# Create new file with opening bracket
+		var file = FileAccess.open(session_path, FileAccess.WRITE)
+		if not file:
+			push_error("Failed to create session dump file: " + session_path)
+			return ERR_CANT_CREATE
+		_append_to_file(file, dump_dict, true)
+	else:
+		# Append to existing file
+		var file = FileAccess.open(session_path, FileAccess.READ_WRITE)
+		if not file:
+			push_error("Failed to open session dump file: " + session_path)
+			return ERR_FILE_CANT_OPEN
+		
+		# Seek to just before the last two characters (the newline and closing bracket)
+		file.seek(file.get_length() - 2)
+		_append_to_file(file, dump_dict, false)
 	
-	if should_write_session:
-		# Get or create session file path
-		var session_path: String = Print.current_dump_file
-		if session_path.is_empty():
-			session_path = _generate_session_file_path()
-			Print.current_dump_file = session_path
-			
-			# Create new file with opening bracket
-			var file = FileAccess.open(session_path, FileAccess.WRITE)
-			if not file:
-				push_error("Failed to create session dump file: " + session_path)
-				return ERR_CANT_CREATE
-			_append_to_file(file, dump_dict, true)
-			
-		else:
-			# Append to existing file
-			var file = FileAccess.open(session_path, FileAccess.READ_WRITE)
-			if not file:
-				push_error("Failed to open session dump file: " + session_path)
-				return ERR_FILE_CANT_OPEN
-				
-			# Seek to just before the last two characters (the newline and closing bracket)
-			file.seek(file.get_length() - 2)
-			_append_to_file(file, dump_dict, false)
-	
-	# Handle latest dump file if we're in the editor
+	# Mirror to latest dump file if we're in the editor
 	if OS.has_feature("editor"):
-		var file = FileAccess.open(LATEST_DUMP_PATH, FileAccess.WRITE)
-		if file:
-			file.store_string("[\n" + JSON.stringify(dump_dict, "\t") + "\n]")
-			file.close()
-			if OS.has_feature("editor") and reason != DumpReason.APP_CLOSE:
+		# Copy the entire session file to latest_dump
+		var session_file = FileAccess.open(session_path, FileAccess.READ)
+		var latest_file = FileAccess.open(LATEST_DUMP_PATH, FileAccess.WRITE)
+		
+		if session_file and latest_file:
+			latest_file.store_string(session_file.get_as_text())
+			latest_file.close()
+			session_file.close()
+			
+			# Only trigger debug window for non-close events
+			if reason != DumpReason.APP_CLOSE and reason != DumpReason.FLUSH:
 				# Trigger a breakpoint after writing the file. This will cause the editor to open
 				# the Print panel and display the dump that we just generated.
 				#TODO: move back to editor once we are done developing in the game window.
-				#show_debug_window()
-				breakpoint
+				#breakpoint
+				show_debug_window()
 	
 	return OK
 
@@ -96,13 +96,13 @@ static func show_debug_window() -> void:
 	window.max_size = Vector2i(0, 0)  # No maximum size (0,0 means unlimited)
 	window.mode = Window.MODE_WINDOWED  # Start in windowed mode
 	window.borderless = false
-	window.always_on_top = true  # Keep above game window
+	#window.always_on_top = true  # Keep above game window
 	window.transparent = false
 	window.close_requested.connect(func(): window.queue_free())
 	
 	# Load and add print editor tab
-	var editor_tab_scene = load("res://addons/sdg-print/dump_viewer/print_editor_tab.tscn")
-	var editor_tab = editor_tab_scene.instantiate()
+	var crash_report = load("res://addons/sdg-print/dumps/crash_report.tscn")
+	var editor_tab = crash_report.instantiate()
 	window.add_child(editor_tab)
 	
 	# Make editor tab fill window
@@ -116,8 +116,8 @@ static func show_debug_window() -> void:
 
 
 ## Loads and validates all dumps from a file
-## Returns an array of valid dumps, skipping any that fail version validation
-static func load_dumps(file_path: String) -> Array:
+## Returns an array of DumpData objects, skipping any that fail validation
+static func load_dumps(file_path: String) -> Array[DumpData]:
 	if not FileAccess.file_exists(file_path):
 		push_error("Dump file not found: " + file_path)
 		return []
@@ -138,7 +138,13 @@ static func load_dumps(file_path: String) -> Array:
 		push_error("Invalid dump file format - expected array of dumps")
 		return []
 	
-	return dumps
+	var dump_data: Array[DumpData] = []
+	for dump_dict in dumps:
+		var dump = DumpData.new()
+		if dump.load_from_dict(dump_dict):
+			dump_data.append(dump)
+	
+	return dump_data
 
 
 ## Lists all dump files in the dumps directory
@@ -174,10 +180,13 @@ static func cleanup_old_dumps(keep_count: int = 10) -> void:
 
 
 ## Creates a standardized dump dictionary with metadata
-static func create_dump_dict(logger_data: Dictionary, reason: DumpReason) -> Dictionary:
+static func create_dump_dict(logger_data: Dictionary, reason: DumpReason, context := "") -> Dictionary:
+	var reason_string = DumpReason.keys()[reason].capitalize()
+	if context != "":
+		reason_string += " - " + context
 	return {
 		"timestamp": Time.get_unix_time_from_system(),
-		"reason": DumpReason.keys()[reason].capitalize(),
+		"reason": reason_string,
 		"module_width": Print._current_module_width,
 		"loggers": logger_data
 	}

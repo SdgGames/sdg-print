@@ -30,7 +30,8 @@ enum LogLevel {
 	WARNING = 2, ## Prints a warning using [code]push_warning[/code].
 	INFO = 3, ## Standard print formatted as "[color=cyan]INFO:[/color] message".
 	DEBUG = 4, ## Standard print formatted as "[color=green]DEBUG:[/color] message".
-	VERBOSE = 5 ## Standard print formatted as "[color=purple]VERBOSE:[/color] message".
+	VERBOSE = 5, ## Standard print formatted as "[color=purple]VERBOSE:[/color] message".
+	FRAME_DATA_ONLY = 6, ## Internal value for storing frames in dump files. Do not use.
 }
 
 ## Determines if this logger is a member of the Print singleton, a instanced node, or unknown.
@@ -44,7 +45,7 @@ enum LogType {
 ## fail if there are multiple loggers with the same id.
 ## [br][br]
 ## If left blank, will be set automatically based on the parent's path in the scene tree.
-@export var id := ""
+@export var id := &""
 
 ## What [enum LogLevel] the module will print at. Messages more verbose than this won't be output.
 @export var print_level : LogLevel = LogLevel.SILENT
@@ -172,10 +173,8 @@ func verbose(message: String):
 ## This should be called at the start of whatever process you're tracking
 ## (usually at the start of a frame, hence the name).
 func start_frame(title := ""):
-	if _current_frame != null and _has_frame_changes:
-		_frame_history.push(_current_frame)
-	
 	_current_frame = FrameLog.new(id, title)
+	_frame_history.push(LogEntry.wrap_frame(_current_frame, id))
 	_has_frame_changes = title != ""
 
 
@@ -203,7 +202,6 @@ func in_frame(line: String):
 func end_frame():
 	if _current_frame != null:
 		_current_frame.is_complete = true
-		_frame_history.push(_current_frame)
 		_has_frame_changes = false
 
 
@@ -296,13 +294,12 @@ func to_dict() -> Dictionary:
 		"id": id,
 		"log_history": _log_history.to_dict(),
 		"frame_history": _frame_history.to_dict(),
-		"current_frame": _current_frame.to_dict() if _current_frame and _has_frame_changes else null
 	}
 
 
 # Helper function to create and store a log entry
 func _log(level: LogLevel, message: String) -> LogEntry:
-	var entry = LogEntry.new(level, id, message)
+	var entry = LogEntry.new(level, id, message, _current_frame)
 	if archive_level >= level:
 		_log_history.push(entry)
 	return entry

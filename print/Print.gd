@@ -61,7 +61,7 @@ const self_print_level := Logger.LogLevel.SILENT
 ## The default [enum Logger.LogLevel] for archiving from the "Print" logger.
 const self_archive_level := Logger.LogLevel.VERBOSE
 
-## Global print settings used as defaults for all loggers without custom settings
+## Global print settings used as defaults for all loggers without custom settings.
 @export var settings: PrintSettings
 
 ## The number of warnings encountered since the game started.
@@ -77,15 +77,20 @@ var _logs := {}
 # References to the global and local logger instances.
 var _global_logger: Logger
 var _print_logger: Logger
-# Current width needed to align all logger module names
+# Current width needed to align all logger module names.
 var _current_module_width := 0
 
+
+# Do all of our work as early as possible so other classes can print from their _ready calls.
 func _init():
 	# Register project settings
 	PrintSettings._register_settings()
 	
 	# Initialize global settings
 	settings = PrintSettings.from_project_settings()
+	
+	# Clean up extra files from previous sessions.
+	ErrorDump.cleanup_old_dumps(settings.max_log_files)
 	
 	# Create the print logger with default settings
 	_print_logger = Logger.new()._second_init(
@@ -229,17 +234,26 @@ func throw_assert(message: String, dump_error := true):
 
 
 ## Dumps all logger data and returns the JSON string.
-func dump_all(reason := ErrorDump.DumpReason.MANUAL) -> String:
+func dump_all(reason := ErrorDump.DumpReason.MANUAL, context := "") -> String:
 	var logger_data = {}
 	for id in _logs.keys():
 		logger_data[id] = _logs[id].to_dict()
 	
-	if ErrorDump.save_dump(logger_data, reason) == OK:
+	if ErrorDump.save_dump(logger_data, reason, context) == OK:
 		_print_logger.info("Dumped all loggers to file.")
 	else:
 		# Do not trigger an error dump when throwing an error here.
 		_print_logger.error("Failed to save dump to file!", false, false)
-	return JSON.stringify(ErrorDump.create_dump_dict(logger_data, reason))
+	return JSON.stringify(ErrorDump.create_dump_dict(logger_data, reason, context))
+
+
+## Dumps all logger data to disk, then resets all loggers.
+## Use this if you just logged a lot of data (like generating a world, etc.)
+## Use [param context] to indicate why this flush was performed. This will appear
+## at the top of the dump log in the viewer.
+func flush(context := ""):
+	dump_all(ErrorDump.DumpReason.FLUSH, context)
+	start_all()
 
 
 ## Pass-through to the Global print singleton.

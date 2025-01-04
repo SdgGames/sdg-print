@@ -12,7 +12,7 @@ var timestamp: float
 var level: Logger.LogLevel
 
 ## The module/logger name that created this entry
-var module: String
+var module: StringName
 
 ## The actual message content
 var message: String
@@ -20,13 +20,28 @@ var message: String
 ## The engine frame number when this entry was created
 var frame_number: int
 
+## A copy of the current frame.
+var current_frame: FrameLog = null
 
-func _init(level: Logger.LogLevel, module: String, message: String):
+
+## Creates a new LogEntry that wraps frame data
+static func wrap_frame(frame: FrameLog, module: StringName) -> LogEntry:
+	var entry = LogEntry.new(
+		Logger.LogLevel.FRAME_DATA_ONLY,
+		module,
+		"", # Minimize file size, we can generate a message when building from a dictionary later.
+		frame
+	)
+	return entry
+
+
+func _init(level: Logger.LogLevel, module: StringName, message: String, current_frame: FrameLog):
 	self.timestamp = Time.get_unix_time_from_system()
 	self.level = level
 	self.module = module
 	self.message = message
 	self.frame_number = Engine.get_frames_drawn()
+	self.current_frame = current_frame
 
 
 ## Returns the entry formatted according to the provided settings.
@@ -94,16 +109,22 @@ func to_dict() -> Dictionary:
 	return {
 		"timestamp": timestamp,
 		"level": Logger.LogLevel.keys()[level],
-		"module": module,
 		"message": message,
-		"frame_number": frame_number
+		"frame_number": frame_number,
+		"current_frame": null if current_frame == null else current_frame.to_dict()
 	}
 
 
 ## Creates a LogEntry from a dictionary
-static func from_dict(data: Dictionary) -> LogEntry:
+static func from_dict(data: Dictionary, module: StringName) -> LogEntry:
 	var level_idx = Logger.LogLevel.keys().find(data.level)
-	var entry = LogEntry.new(level_idx, data.module, data.message)
+	var entry = LogEntry.new(level_idx, module, data.message, null)
 	entry.timestamp = data.timestamp
 	entry.frame_number = data.frame_number
+	if data.current_frame != null:
+		entry.current_frame = FrameLog.from_dict(data.current_frame)
+		# We don't store a message to save space. If we are loading this from a file,
+		# let's use the space to generate a meaningful message.
+		if entry.level == Logger.LogLevel.FRAME_DATA_ONLY:
+			entry.message = "Frame %s %s" % [entry.frame_number, entry.current_frame.title]
 	return entry

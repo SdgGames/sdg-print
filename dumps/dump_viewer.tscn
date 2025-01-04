@@ -1,0 +1,37 @@
+[gd_scene load_steps=3 format=3 uid="uid://bgqpnmnejfmrv"]
+
+[ext_resource type="Script" path="res://addons/sdg-print/dumps/dump_viewer.gd" id="1_nakp4"]
+[ext_resource type="Texture2D" uid="uid://jq5x18n7f4y3" path="res://addons/sdg-print/print_panel/search.svg" id="2_u88hd"]
+
+[node name="DumpViewer" type="HBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_nakp4")
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Sidebar" type="VBoxContainer" parent="Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Search" type="LineEdit" parent="Scroll/Sidebar"]
+layout_mode = 2
+placeholder_text = "Search Dump"
+clear_button_enabled = true
+right_icon = ExtResource("2_u88hd")
+
+[node name="Tree" type="Tree" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+columns = 4
+column_titles_visible = true
+hide_root = true
+select_mode = 1

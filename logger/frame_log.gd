@@ -5,14 +5,8 @@ class_name FrameLog extends RefCounted
 ## execution. This is used by the [Logger] class to track detailed state
 ## information on a frame-by-frame basis.
 ## [br][br]
-## This class is used internally by the [Logger] class and shouldn't need to be
+## This class is used internally by the [Logger] class and shouldn't be
 ## created manually.
-
-## The timestamp when this frame data was created (as Unix timestamp)
-var timestamp: float
-
-## The module/logger name that created this frame data
-var module: String
 
 ## The title string for this frame
 var title: String
@@ -23,33 +17,11 @@ var details: String
 ## Whether this frame's data collection is complete
 var is_complete: bool
 
-## The engine frame number when this data was created
-var frame_number: int
 
-
-func _init(module: String, title := "", details := ""):
-	self.timestamp = Time.get_unix_time_from_system()
-	self.module = module
+func _init(title := "", details := ""):
 	self.title = title
 	self.details = details
 	self.is_complete = false
-	self.frame_number = Engine.get_frames_drawn()
-
-
-## Returns the timestamp formatted as a time string (HH:MM:SS)
-func get_time_string() -> String:
-	var datetime = Time.get_datetime_dict_from_unix_time(timestamp)
-	return "%02d:%02d:%02d" % [
-		datetime.hour,
-		datetime.minute, 
-		datetime.second
-	]
-
-
-## Returns the full datetime as a dictionary with keys:
-## year, month, day, weekday, hour, minute, second
-func get_datetime() -> Dictionary:
-	return Time.get_datetime_dict_from_unix_time(timestamp)
 
 
 ## Formats the frame data as a string, optionally including the title.
@@ -61,7 +33,7 @@ func format(include_title := false) -> String:
 		output = "[WARNING: Frame capture incomplete]\n"
 	
 	if include_title and title:
-		output += "[%s] %s\n" % [get_time_string(), title]
+		output += title + "\n"
 	
 	if details:
 		output += details
@@ -73,19 +45,14 @@ func format(include_title := false) -> String:
 ## Useful for serialization or detailed inspection.
 func to_dict() -> Dictionary:
 	return {
-		"timestamp": timestamp,
-		"module": module,
 		"title": title,
 		"details": details,
-		"is_complete": is_complete,
-		"frame_number": frame_number
+		"is_complete": is_complete
 	}
 
 
 ## Creates a new FrameLog from dictionary data
 static func from_dict(data: Dictionary) -> FrameLog:
-	var frame = FrameLog.new(data.module, data.title, data.details)
-	frame.timestamp = data.timestamp
+	var frame = FrameLog.new(data.title, data.details)
 	frame.is_complete = data.is_complete
-	frame.frame_number = data.frame_number
 	return frame
