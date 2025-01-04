@@ -66,8 +66,17 @@ class_name PrintSettings extends Resource
 ## Color used for the timestamp component in log messages.
 @export var timestamp_color := Color.CORNFLOWER_BLUE
 
+## Color used for the frame number in the dump viewer.
+@export var frame_number_color := Color.LIGHT_STEEL_BLUE
+
+## Color used for the frame data in the debug viewer.
+@export var frame_data_color := Color.PALE_GREEN
+
 ## Color used for the module name component in log messages.
 @export var module_name_color := Color.MAGENTA
+
+## Color used to start a new dump in the debug viewer.
+@export var dump_header_color := Color.GOLD
 
 # ProjectSettings paths and default values
 const SETTINGS_PATH = "debug/logging/"

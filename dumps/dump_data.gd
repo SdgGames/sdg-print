@@ -15,8 +15,6 @@ class LoggerData extends RefCounted:
 		# Load log history
 		log_history = RingBuffer.from_dict(data.log_history, LogEntry.from_dict.bind(id))
 		# Load frame history
-		if !data.frame_history.items.is_empty():
-			print("Error starts here.")
 		frame_history = RingBuffer.from_dict(data.frame_history, LogEntry.from_dict.bind(id))
 	
 	## Get all entries, optionally filtered by level

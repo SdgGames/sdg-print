@@ -6,3 +6,4 @@ extends Control
 
 func load_latest_dump(path: String):
 	active_dump.load_dump_file(path)
+	DirAccess.remove_absolute(path)

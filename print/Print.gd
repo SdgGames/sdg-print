@@ -94,14 +94,14 @@ func _init():
 	
 	# Create the print logger with default settings
 	_print_logger = Logger.new()._second_init(
-		"Print", 
+		&"Print", 
 		self_print_level,
 		self_archive_level,
 		Logger.LogType.SINGLETON,
 		settings
 	)
 	add_child(_print_logger)
-	_global_logger = create_logger("Global", VERBOSE, VERBOSE)
+	_global_logger = create_logger(&"Global", VERBOSE, VERBOSE)
 
 
 # Connect to the Console (if it is present)
@@ -243,7 +243,7 @@ func dump_all(reason := ErrorDump.DumpReason.MANUAL, context := "") -> String:
 		_print_logger.info("Dumped all loggers to file.")
 	else:
 		# Do not trigger an error dump when throwing an error here.
-		_print_logger.error("Failed to save dump to file!", false, false)
+		_print_logger.error("Failed to save dump to file!", false)
 	return JSON.stringify(ErrorDump.create_dump_dict(logger_data, reason, context))
 
 
@@ -383,7 +383,7 @@ func _unregister_logger(logger: Logger):
 #        Any object can be used as a key, but it will convert with str() and may
 #        not be easily human-readable as a result.
 func _get_id(identifier) -> String:
-	var id = ""
+	var id := &""
 	match _get_type(identifier):
 		Logger.LogType.SINGLETON:
 			id = identifier

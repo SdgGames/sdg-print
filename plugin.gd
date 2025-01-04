@@ -85,11 +85,6 @@ func _get_plugin_icon() -> Texture2D:
 ## If [param grab_focus] is true, switches to the Print tab after loading.
 ## Uses a delay to ensure proper UI updates when switching tabs.
 func load_latest_dump(grab_focus := true) -> void:
-	# TODO: Let this grab focus again. We are currently developing this, so there might
-	# be bugs in the crash report window itself.
-	return
-	grab_focus = false
-	
 	# Prevent multiple simultaneous loads
 	if loading_dump:
 		return

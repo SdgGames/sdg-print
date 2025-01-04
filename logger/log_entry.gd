@@ -27,7 +27,7 @@ var current_frame: FrameLog = null
 ## Creates a new LogEntry that wraps frame data
 static func wrap_frame(frame: FrameLog, module: StringName) -> LogEntry:
 	var entry = LogEntry.new(
-		Logger.LogLevel.FRAME_DATA_ONLY,
+		Logger.LogLevel.FRAME_ONLY,
 		module,
 		"", # Minimize file size, we can generate a message when building from a dictionary later.
 		frame
@@ -125,6 +125,6 @@ static func from_dict(data: Dictionary, module: StringName) -> LogEntry:
 		entry.current_frame = FrameLog.from_dict(data.current_frame)
 		# We don't store a message to save space. If we are loading this from a file,
 		# let's use the space to generate a meaningful message.
-		if entry.level == Logger.LogLevel.FRAME_DATA_ONLY:
+		if entry.level == Logger.LogLevel.FRAME_ONLY:
 			entry.message = "Frame %s %s" % [entry.frame_number, entry.current_frame.title]
 	return entry

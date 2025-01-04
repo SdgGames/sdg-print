@@ -31,7 +31,7 @@ enum LogLevel {
 	INFO = 3, ## Standard print formatted as "[color=cyan]INFO:[/color] message".
 	DEBUG = 4, ## Standard print formatted as "[color=green]DEBUG:[/color] message".
 	VERBOSE = 5, ## Standard print formatted as "[color=purple]VERBOSE:[/color] message".
-	FRAME_DATA_ONLY = 6, ## Internal value for storing frames in dump files. Do not use.
+	FRAME_ONLY = 6, ## Internal value for storing frames in dump files. Do not use.
 }
 
 ## Determines if this logger is a member of the Print singleton, a instanced node, or unknown.
@@ -78,7 +78,7 @@ func _ready():
 
 # Set up everything that we can't do in an _init call (because Godot calls _init on nodes in the scene tree).
 # Returns self so you can chain Logger.new.init(...)
-func _second_init(id := "", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE,
+func _second_init(id := &"", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE,
 		log_type := LogType.OBJECT, custom_settings: PrintSettings = null) -> Logger:
 	self.id = id
 	self.name = str(id)
@@ -105,25 +105,24 @@ func start():
 ## Also throws an assert so program execution will halt.
 func assert_that(is_true, message := ""):
 	if !is_true:
-		error(message, false, true)
+		error(message, true)
 		assert(false)
 
 
 ## Prints an error to screen and pushes to console.
 ## By default, this will create an error dump as well.
 ## If you just want to print the current error, set [param dump_error] to [code]false[/code].
-func error(message: String, dump_error := true, dump_all := false):
+func error(message: String, dump_error := true):
 	Print.error_count += 1
 	var entry = _log(LogLevel.ERROR, message)
 	
 	if print_level >= LogLevel.ERROR:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
-		push_error(message)
-		if dump_all:
-			Print.dump_all(ErrorDump.DumpReason.ERROR)
-		elif dump_error:
-			error_dump()
+		print_rich(formatted)
+	if dump_error:
+		Print.dump_all(ErrorDump.DumpReason.ERROR)
+	push_error(message)
 
 
 ## Prints a WARNING to screen and pushes to console.
@@ -134,9 +133,8 @@ func warning(message: String):
 	if print_level >= LogLevel.WARNING:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
-		push_warning(message)
-		if OS.has_feature("editor"):
-			print_rich(formatted)
+		print_rich(formatted)
+	push_warning(message)
 
 
 ## Prints an INFO message to screen and console.
@@ -239,44 +237,6 @@ func print_at_level(message: String, level):
 			error("Attempted to print at ''SILENT'' logging level.")
 		_:
 			error("Attempted to print at an invalid logging level.")
-
-
-## Prints the entire message history. This is called automatically from [method error] and
-## [method throw_assert], but you can dump errors manually if you don't want to add an entry
-## to the print logs.
-func error_print():
-	var divider_color = settings.module_name_color.to_html(false)
-	var message = "[b][color=#%s]-=-=- Error Encountered! %s Module History Starts Here -=-=-[/color][/b]" % [
-		divider_color,
-		id
-	]
-	
-	# Add all logged messages in chronological order
-	for entry in _log_history.get_all():
-		message += "\n" + entry.format(settings)
-	
-	# Add frame history
-	var frames = _frame_history.get_all()
-	if frames.size() > 0:
-		message += "\n[b][color=#%s]-=-=- Frame History: -=-=-[/color][/b]" % divider_color
-		for frame in frames:
-			message += "\n" + frame.format(true)
-	
-	# Add current frame if it exists and has changes
-	if _current_frame != null and _has_frame_changes:
-		if _current_frame.is_complete:
-			message += "\n[b][color=#%s]-=-=- Current Frame: -=-=-[/color][/b]\n" % divider_color
-		else:
-			message += "\n[b][color=#%s]-=-=- Current Frame (INCOMPLETE): -=-=-[/color][/b]\n" % divider_color
-		message += _current_frame.format(true)
-	
-	message += "\n[b][color=#%s]-=-=- Error Encountered! %s Module History Ends Here -=-=-[/color][/b]" % [
-		divider_color,
-		id
-	]
-	
-	_print_console(message)
-	print_rich(message)
 
 
 ## Dumps error information to file. If we are in the editor, opens the LogViewer panel as well.

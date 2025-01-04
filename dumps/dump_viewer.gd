@@ -2,10 +2,11 @@
 class_name DumpViewer extends Control
 
 enum Columns {
-	TIMESTAMP = 0,
-	LEVEL = 1,
-	MODULE = 2,
-	MESSAGE = 3
+	MODULE,
+	TIMESTAMP,
+	MESSAGE,
+	LEVEL,
+	FRAME,
 }
 
 @onready var tree: Tree = $Tree
@@ -21,36 +22,6 @@ func _ready():
 	setup_tree()
 
 
-func setup_tree():
-	tree.clear()
-	
-	# Create columns for each part of the log entry
-	tree.columns = 4
-	
-	# Set up column properties
-	tree.set_column_title(Columns.TIMESTAMP, "Time")
-	tree.set_column_title(Columns.LEVEL, "Level")
-	tree.set_column_title(Columns.MODULE, "Module")
-	tree.set_column_title(Columns.MESSAGE, "Message")
-	
-	# Configure column sizes
-	tree.set_column_expand(Columns.TIMESTAMP, false)  # Fixed width
-	tree.set_column_custom_minimum_width(Columns.TIMESTAMP, 100)
-	
-	tree.set_column_expand(Columns.LEVEL, false)  # Fixed width
-	tree.set_column_custom_minimum_width(Columns.LEVEL, 80)
-	
-	tree.set_column_expand(Columns.MODULE, false)  # Fixed width
-	tree.set_column_custom_minimum_width(Columns.MODULE, 120)
-	
-	tree.set_column_expand(Columns.MESSAGE, true)  # Expandable
-	tree.set_column_custom_minimum_width(Columns.MESSAGE, 300)
-	
-	# Show column titles
-	tree.set_column_titles_visible(true)
-	tree.hide_root = true
-
-
 func load_dump_file(path: String):
 	setup_tree()  # Clear and reset the tree
 	
@@ -60,10 +31,6 @@ func load_dump_file(path: String):
 		create_error_item("No valid dumps found in file")
 		return
 	
-	refresh_tree()
-
-
-func refresh_tree() -> void:
 	# Clear existing items
 	tree.clear()
 	var root = tree.create_item()
@@ -78,40 +45,46 @@ func refresh_tree() -> void:
 		add_dump_to_tree(dump, root, dump_index)
 
 
-func add_dump_to_tree(dump: DumpData, parent: TreeItem, dump_index: int) -> void:
-	# Create dump header
-	var dump_item = tree.create_item(parent)
-	var dump_time = format_timestamp(dump.metadata.timestamp)
+func setup_tree():
+	tree.clear()
 	
-	# Get all entries chronologically
-	var entries = dump.get_all_entries()
-	var header_text = "Dump %d (Reason: %s, %d entries)" % [
-		dump_index + 1,
-		dump.metadata.reason,
-		entries.size()
-	]
+	# Create columns for each part of the log entry
+	tree.columns = 5
 	
-	# Set header
-	dump_item.set_text(Columns.TIMESTAMP, dump_time)
-	dump_item.set_text(Columns.MESSAGE, header_text)
+	# Set up column properties
+	tree.set_column_title(Columns.MODULE, "Module")
+	tree.set_column_title(Columns.TIMESTAMP, "Time")
+	tree.set_column_title(Columns.LEVEL, "Level")
+	tree.set_column_title(Columns.MESSAGE, "Message")
+	tree.set_column_title(Columns.FRAME, "Frame")
 	
-	# Color the header row
-	for col in range(tree.columns):
-		dump_item.set_custom_color(col, Color.YELLOW)
+	# Configure column sizes
+	tree.set_column_expand(Columns.FRAME, false)
+	tree.set_column_custom_minimum_width(Columns.FRAME, 40)
 	
-	dump_item.collapsed = false
+	tree.set_column_expand(Columns.TIMESTAMP, false)
+	tree.set_column_custom_minimum_width(Columns.TIMESTAMP, 70)
 	
-	# Add all entries chronologically
-	for entry in entries:
-		add_entry_to_tree(entry, dump_item)
+	tree.set_column_expand(Columns.LEVEL, false)
+	tree.set_column_custom_minimum_width(Columns.LEVEL, 110)
+	
+	tree.set_column_expand(Columns.MODULE, false)
+	tree.set_column_custom_minimum_width(Columns.MODULE, 140)
+	
+	tree.set_column_expand(Columns.MESSAGE, true)
+	tree.set_column_custom_minimum_width(Columns.MESSAGE, 300)
 
 
 func add_entry_to_tree(entry: LogEntry, parent: TreeItem) -> void:
 	var entry_item = tree.create_item(parent)
 	
-	# Set each column's content
+	# Set each column's content.
+	entry_item.set_text(Columns.FRAME, str(entry.frame_number))
 	entry_item.set_text(Columns.TIMESTAMP, format_time(entry.timestamp))
-	entry_item.set_text(Columns.LEVEL, Logger.LogLevel.keys()[entry.level])
+	
+	var level_text = Logger.LogLevel.keys()[entry.level]
+	entry_item.set_text(Columns.LEVEL, level_text)
+	
 	entry_item.set_text(Columns.MODULE, entry.module)
 	entry_item.set_text(Columns.MESSAGE, entry.message)
 	
@@ -122,6 +95,8 @@ func add_entry_to_tree(entry: LogEntry, parent: TreeItem) -> void:
 	# Color code the module name and timestamp
 	entry_item.set_custom_color(Columns.MODULE, print_settings.module_name_color)
 	entry_item.set_custom_color(Columns.TIMESTAMP, print_settings.timestamp_color)
+	entry_item.set_custom_color(Columns.FRAME, print_settings.frame_number_color)
+	entry_item.collapsed = true
 	
 	# If this entry has frame data, add it as a child
 	if entry.current_frame != null:
@@ -130,9 +105,31 @@ func add_entry_to_tree(entry: LogEntry, parent: TreeItem) -> void:
 		# Indent frame data for better visibility
 		frame_item.set_text(Columns.MODULE, "  ")  # Add some space for indentation
 		
-		# Use a slightly different color for frame data
 		for col in range(tree.columns):
-			frame_item.set_custom_color(col, print_settings.debug_color.darkened(0.2))
+			frame_item.set_custom_color(col, print_settings.frame_data_color)
+
+
+func add_dump_to_tree(dump: DumpData, parent: TreeItem, dump_index: int) -> void:
+	# Create dump header
+	var dump_item = tree.create_item(parent)
+	
+	# Get all entries chronologically
+	var entries = dump.get_all_entries()
+	var header = "Dump %2d | %4d Entries | Reason: %s" % \
+			[(dump_index + 1), entries.size(), dump.metadata.reason]
+	
+	dump_item.set_text(Columns.TIMESTAMP, format_time(dump.metadata.timestamp))
+	dump_item.set_text(Columns.MESSAGE, header)
+	
+	# Color the header row
+	for col in range(tree.columns):
+		dump_item.set_custom_color(col, print_settings.dump_header_color)
+	
+	dump_item.collapsed = false
+	
+	# Add all entries chronologically
+	for entry in entries:
+		add_entry_to_tree(entry, dump_item)
 
 
 func create_error_item(error_message: String) -> void:
@@ -143,19 +140,6 @@ func create_error_item(error_message: String) -> void:
 	# Make error message red across all columns
 	for col in range(tree.columns):
 		error_item.set_custom_color(col, Color.RED)
-
-
-# Helper functions for formatting
-func format_timestamp(unix_time: float) -> String:
-	var datetime = Time.get_datetime_dict_from_unix_time(unix_time)
-	return "%04d-%02d-%02d %02d:%02d:%02d" % [
-		datetime.year,
-		datetime.month,
-		datetime.day,
-		datetime.hour,
-		datetime.minute,
-		datetime.second
-	]
 
 
 func format_time(unix_time: float) -> String:
@@ -179,23 +163,19 @@ func get_level_color(level: Logger.LogLevel) -> Color:
 			return print_settings.debug_color
 		Logger.LogLevel.VERBOSE:
 			return print_settings.verbose_color
+		Logger.LogLevel.FRAME_ONLY:
+			return Color.WHITE_SMOKE
 		_:
 			return Color.WHITE
 
 
-# Column visibility control
-func set_column_visible(column: Columns, visible: bool) -> void:
-	if column >= 0 and column < tree.columns:
-		# Store current widths
-		var widths = []
-		for i in range(tree.columns):
-			widths.append(tree.get_column_width(i))
-		
-		if visible:
-			# Restore the column's previous width
-			tree.set_column_expand(column, column == Columns.MESSAGE)
-			tree.set_column_custom_minimum_width(column, widths[column])
-		else:
-			# Hide the column by setting its width to 0
-			tree.set_column_custom_minimum_width(column, 0)
-			tree.set_column_expand(column, false)
+func _on_refresh_pressed() -> void:
+	setup_tree()
+	
+	tree.clear()
+	var root = tree.create_item()
+	
+	# Process each dump in the file
+	for dump_index in range(_current_dumps.size()):
+		var dump = _current_dumps[dump_index]
+		add_dump_to_tree(dump, root, dump_index)

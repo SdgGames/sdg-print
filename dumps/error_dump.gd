@@ -46,8 +46,11 @@ static func save_dump(logger_data: Dictionary, reason := DumpReason.UNSPECIFIED,
 		file.seek(file.get_length() - 2)
 		_append_to_file(file, dump_dict, false)
 	
-	# Mirror to latest dump file if we're in the editor
-	if OS.has_feature("editor"):
+	if reason == DumpReason.MANUAL:
+		show_debug_window(session_path)
+	
+	# Mirror to latest dump file if we're in the editor.
+	if OS.has_feature("editor") and reason >= DumpReason.ERROR:
 		# Copy the entire session file to latest_dump
 		var session_file = FileAccess.open(session_path, FileAccess.READ)
 		var latest_file = FileAccess.open(LATEST_DUMP_PATH, FileAccess.WRITE)
@@ -57,19 +60,12 @@ static func save_dump(logger_data: Dictionary, reason := DumpReason.UNSPECIFIED,
 			latest_file.close()
 			session_file.close()
 			
-			# Only trigger debug window for non-close events
-			if reason != DumpReason.APP_CLOSE and reason != DumpReason.FLUSH:
-				# Trigger a breakpoint after writing the file. This will cause the editor to open
-				# the Print panel and display the dump that we just generated.
-				#TODO: move back to editor once we are done developing in the game window.
-				#breakpoint
-				show_debug_window()
-	
+			breakpoint
 	return OK
 
 
 # Temporary debug function to show the print editor tab in a window
-static func show_debug_window() -> void:
+static func show_debug_window(session_path: String) -> void:
 	# Create window
 	var window = Window.new()
 	window.title = "Print Debug Viewer"
@@ -112,7 +108,7 @@ static func show_debug_window() -> void:
 	Engine.get_main_loop().root.add_child(window)
 	
 	# Load the latest dump
-	editor_tab.load_latest_dump(LATEST_DUMP_PATH)
+	editor_tab.load_latest_dump(session_path)
 
 
 ## Loads and validates all dumps from a file

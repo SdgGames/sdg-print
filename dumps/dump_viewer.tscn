@@ -4,6 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://jq5x18n7f4y3" path="res://addons/sdg-print/print_panel/search.svg" id="2_u88hd"]
 
 [node name="DumpViewer" type="HBoxContainer"]
+process_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -27,11 +28,17 @@ placeholder_text = "Search Dump"
 clear_button_enabled = true
 right_icon = ExtResource("2_u88hd")
 
+[node name="Refresh" type="Button" parent="Scroll/Sidebar"]
+layout_mode = 2
+text = "Refresh"
+
 [node name="Tree" type="Tree" parent="."]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 columns = 4
 column_titles_visible = true
+allow_search = false
 hide_root = true
-select_mode = 1
+
+[connection signal="pressed" from="Scroll/Sidebar/Refresh" to="." method="_on_refresh_pressed"]
