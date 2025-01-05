@@ -46,18 +46,19 @@ class_name SDG_Print extends Node
 
 enum {
 	SILENT = 0,
+	## [br]Mirrors the values of [enum Logger.LogLevel]. Functions like [method Print.from] can take 
+	## this as an argument instead of taking [enum Logger.LogLevel]. For example, 
+	## [code]Print.from("Player_Submodule_Logger", "Hello World!", Print.INFO)[/code]
 	ERROR = 1,
 	WARNING = 2,
 	INFO = 3,
 	DEBUG = 4,
-	## [br]Mirrors the values of [enum Logger.LogLevel]. Functions like [method Print.from] can take 
-	## this as an argument instead of taking [enum Logger.LogLevel]. For example, 
-	## [code]Print.from("Player_Submodule_Logger", "Hello World!", Print.INFO)[/code]
-	VERBOSE = 5
+	VERBOSE = 5,
+	FRAME_ONLY = 6, ## Internal value for storing frames in dump files. Do not use.
 }
 
 ## The default [enum Logger.LogLevel] for printing from the "Print" logger.
-const self_print_level := Logger.LogLevel.SILENT
+const self_print_level := Logger.LogLevel.WARNING
 ## The default [enum Logger.LogLevel] for archiving from the "Print" logger.
 const self_archive_level := Logger.LogLevel.VERBOSE
 
@@ -94,14 +95,15 @@ func _init():
 	
 	# Create the print logger with default settings
 	_print_logger = Logger.new()._second_init(
-		&"Print", 
+		"Print", 
 		self_print_level,
 		self_archive_level,
 		Logger.LogType.SINGLETON,
 		settings
 	)
 	add_child(_print_logger)
-	_global_logger = create_logger(&"Global", VERBOSE, VERBOSE)
+	_print_logger.process_priority = process_priority + 1
+	_global_logger = create_logger("Global", VERBOSE, VERBOSE)
 
 
 # Connect to the Console (if it is present)
@@ -234,13 +236,14 @@ func throw_assert(message: String, dump_error := true):
 ## Use [param context] to indicate why this flush was performed. This will appear
 ## at the top of the dump log in the viewer.
 func flush_logs(context := "", reason := ErrorDump.DumpReason.FLUSH):
+	# Logging an info will also allow us to fold lower quality logs at the start of the dump.
+	_print_logger.info("Dumping all loggers to file.")
+	
 	var logger_data = {}
 	for id in _logs.keys():
 		logger_data[id] = _logs[id].to_dict()
 	
-	if ErrorDump.save_dump(logger_data, reason, context) == OK:
-		_print_logger.info("Dumped all loggers to file.")
-	else:
+	if ErrorDump.save_dump(logger_data, reason, context) != OK:
 		# Do not trigger an error dump when throwing an error here.
 		_print_logger.error("Failed to save dump to file!", false)
 	start_all()

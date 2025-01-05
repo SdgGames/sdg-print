@@ -1,9 +1,12 @@
-[gd_scene load_steps=3 format=3 uid="uid://bgqpnmnejfmrv"]
+[gd_scene load_steps=5 format=3 uid="uid://bgqpnmnejfmrv"]
 
 [ext_resource type="Script" path="res://addons/sdg-print/dumps/dump_viewer.gd" id="1_nakp4"]
 [ext_resource type="Texture2D" uid="uid://jq5x18n7f4y3" path="res://addons/sdg-print/print_panel/search.svg" id="2_u88hd"]
+[ext_resource type="Script" path="res://addons/sdg-print/dumps/log_tree.gd" id="3_5k1if"]
 
-[node name="DumpViewer" type="HBoxContainer"]
+[sub_resource type="ButtonGroup" id="ButtonGroup_7qm44"]
+
+[node name="DumpViewer" type="VBoxContainer"]
 process_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -13,32 +16,80 @@ grow_vertical = 2
 size_flags_vertical = 3
 script = ExtResource("1_nakp4")
 
-[node name="Scroll" type="ScrollContainer" parent="."]
-custom_minimum_size = Vector2(300, 0)
-layout_mode = 2
-horizontal_scroll_mode = 0
-
-[node name="Sidebar" type="VBoxContainer" parent="Scroll"]
+[node name="Menu" type="HBoxContainer" parent="."]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
 
-[node name="Search" type="LineEdit" parent="Scroll/Sidebar"]
+[node name="CollateButton" type="CheckButton" parent="Menu"]
 layout_mode = 2
+button_pressed = true
+text = "Collate"
+alignment = 1
+
+[node name="VSeparator" type="VSeparator" parent="Menu"]
+layout_mode = 2
+
+[node name="Refresh" type="Button" parent="Menu"]
+layout_mode = 2
+text = "Refresh"
+
+[node name="VSeparator2" type="VSeparator" parent="Menu"]
+layout_mode = 2
+
+[node name="Collapse" type="Button" parent="Menu"]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_7qm44")
+text = "Collapse All"
+
+[node name="Error" type="Button" parent="Menu"]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_7qm44")
+text = "Error"
+
+[node name="Warning" type="Button" parent="Menu"]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_7qm44")
+text = "Warning"
+
+[node name="Info" type="Button" parent="Menu"]
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ButtonGroup_7qm44")
+text = "Info"
+
+[node name="Debug" type="Button" parent="Menu"]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_7qm44")
+text = "Debug"
+
+[node name="Verbose" type="Button" parent="Menu"]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_7qm44")
+text = "Verbose"
+
+[node name="Expand" type="Button" parent="Menu"]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_7qm44")
+text = "Expand All"
+
+[node name="VSeparator3" type="VSeparator" parent="Menu"]
+layout_mode = 2
+
+[node name="Search" type="LineEdit" parent="Menu"]
+layout_mode = 2
+size_flags_horizontal = 3
 placeholder_text = "Search Dump"
 clear_button_enabled = true
 right_icon = ExtResource("2_u88hd")
 
-[node name="Refresh" type="Button" parent="Scroll/Sidebar"]
-layout_mode = 2
-text = "Refresh"
-
-[node name="CollateButton" type="CheckButton" parent="Scroll/Sidebar"]
-layout_mode = 2
-text = "Collate Modules"
-alignment = 1
-
-[node name="Tree" type="Tree" parent="."]
+[node name="LogTree" type="Tree" parent="."]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -46,6 +97,15 @@ columns = 5
 column_titles_visible = true
 allow_search = false
 hide_root = true
+select_mode = 1
+script = ExtResource("3_5k1if")
 
-[connection signal="pressed" from="Scroll/Sidebar/Refresh" to="." method="_on_refresh_pressed"]
-[connection signal="toggled" from="Scroll/Sidebar/CollateButton" to="." method="_on_collate_button_toggled"]
+[connection signal="toggled" from="Menu/CollateButton" to="." method="_on_collate_button_toggled"]
+[connection signal="pressed" from="Menu/Refresh" to="." method="_on_refresh_pressed"]
+[connection signal="pressed" from="Menu/Collapse" to="." method="_on_collapse_pressed"]
+[connection signal="pressed" from="Menu/Error" to="." method="_on_error_pressed"]
+[connection signal="pressed" from="Menu/Warning" to="." method="_on_warning_pressed"]
+[connection signal="pressed" from="Menu/Info" to="." method="_on_info_pressed"]
+[connection signal="pressed" from="Menu/Debug" to="." method="_on_debug_pressed"]
+[connection signal="pressed" from="Menu/Verbose" to="." method="_on_verbose_pressed"]
+[connection signal="pressed" from="Menu/Expand" to="." method="_on_expand_pressed"]

@@ -18,7 +18,7 @@ class LoggerData extends RefCounted:
 		frame_history = RingBuffer.from_dict(data.frame_history, LogEntry.from_dict.bind(id))
 	
 	## Get all entries, optionally filtered by level, sorted by timestamp (newest first)
-	func get_entries(min_level := Logger.LogLevel.VERBOSE, append_frames := false) -> Array[LogEntry]:
+	func get_entries(min_level := Logger.LogLevel.FRAME_ONLY, append_frames := false) -> Array[LogEntry]:
 		var entries: Array[LogEntry] = []
 		
 		# Add log entries that meet the minimum level
@@ -71,7 +71,7 @@ func get_all_entries(collated := true) -> Array[LogEntry]:
 		return _get_module_grouped_entries()
 
 
-## Get all entries sorted only by timestamp (newest first)
+## Get all entries with appropriate folding headers
 func _get_collated_entries() -> Array[LogEntry]:
 	var all_entries: Array[LogEntry] = []
 	
@@ -85,10 +85,10 @@ func _get_collated_entries() -> Array[LogEntry]:
 			return a.timestamp > b.timestamp
 	)
 	
-	return all_entries
+	return _add_folding_headers(all_entries)
 
 
-## Get all entries grouped by module, then sorted by timestamp (newest first)
+## Get all entries grouped by module with appropriate folding headers
 func _get_module_grouped_entries() -> Array[LogEntry]:
 	var all_entries: Array[LogEntry] = []
 	
@@ -99,6 +99,79 @@ func _get_module_grouped_entries() -> Array[LogEntry]:
 	# Add entries module by module
 	for module_id in module_ids:
 		var logger = loggers[module_id]
-		all_entries.append_array(logger.get_entries())
+		var module_entries = logger.get_entries()
+		if module_entries.size() > 0:
+			all_entries.append_array(_add_folding_headers(module_entries))
 	
 	return all_entries
+
+
+## Add folding headers based on level transitions
+func _add_folding_headers(entries: Array[LogEntry]) -> Array[LogEntry]:
+	print("Starting folding process with %d entries" % entries.size())
+	var result: Array[LogEntry] = []
+	var current_pos := 0
+	
+	# Process each entry
+	while current_pos < entries.size():
+		var entry = entries[current_pos]
+		print("\nProcessing entry %d: Level %s, Message: %s" % [
+			current_pos,
+			Logger.LogLevel.keys()[entry.level],
+			entry.message.substr(0, 30) + "..."
+		])
+		
+		# Don't process FRAME_ONLY entries
+		if entry.level == Logger.LogLevel.FRAME_ONLY:
+			result.append(entry)
+			current_pos += 1
+			continue
+		
+		# Find the last non-FRAME entry in our result
+		var last_level = Logger.LogLevel.FRAME_ONLY
+		for i in range(result.size() - 1, -1, -1):
+			if result[i].level != Logger.LogLevel.FRAME_ONLY:
+				last_level = result[i].level
+				break
+		
+		# If we're moving to a lower priority level
+		if entry.level > last_level and last_level != Logger.LogLevel.FRAME_ONLY:
+			# Find next higher priority message
+			var next_high_priority_pos = entries.size()
+			for i in range(current_pos + 1, entries.size()):
+				if entries[i].level <= last_level:
+					next_high_priority_pos = i
+					break
+			
+			# Check possible fold levels from most granular to least
+			for fold_level in range(entry.level - 1, last_level, -1):
+				# Look ahead to see if we have any messages at this level before next high priority
+				var has_messages_at_level = false
+				for look_ahead in range(current_pos + 1, next_high_priority_pos):
+					if entries[look_ahead].level == fold_level:
+						has_messages_at_level = true
+						break
+				
+				# If we'll have messages at this level, add a fold point and stop checking
+				if has_messages_at_level:
+					print("Adding fold point at level %s for lower priority messages" % 
+						  Logger.LogLevel.keys()[fold_level])
+					result.append(_create_fold_point(fold_level))
+					break
+		
+		# Add the current entry
+		result.append(entry)
+		current_pos += 1
+	
+	print("\nFinal result has %d entries (started with %d)" % [result.size(), entries.size()])
+	return result
+
+## Create a fold point entry
+func _create_fold_point(level: Logger.LogLevel) -> LogEntry:
+	var log = LogEntry.new(
+		level,
+		&"FOLD_POINT",
+		"--- Fold ---",
+		null
+	)
+	return log
