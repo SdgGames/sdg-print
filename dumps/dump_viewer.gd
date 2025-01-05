@@ -10,6 +10,13 @@ enum Columns {
 }
 
 @onready var tree := $LogTree
+@onready var collapse: Button = $Menu/Collapse
+@onready var error: Button = $Menu/Error
+@onready var warning: Button = $Menu/Warning
+@onready var info: Button = $Menu/Info
+@onready var debug: Button = $Menu/Debug
+@onready var verbose: Button = $Menu/Verbose
+@onready var expand: Button = $Menu/Expand
 var print_settings: PrintSettings
 
 

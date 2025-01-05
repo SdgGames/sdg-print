@@ -85,7 +85,7 @@ layout_mode = 2
 [node name="Search" type="LineEdit" parent="Menu"]
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "Search Dump"
+placeholder_text = "Search Dump (TODO - not implemented yet)"
 clear_button_enabled = true
 right_icon = ExtResource("2_u88hd")
 

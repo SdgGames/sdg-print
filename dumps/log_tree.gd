@@ -30,17 +30,6 @@ func load_dump_file(path: String):
 	refresh_tree()
 
 
-func refresh_tree():
-	# Clear existing items
-	clear()
-	var root = create_item()
-	
-	# Process each dump in the file (already in newest-first order)
-	for dump_index in range(_current_dumps.size()):
-		var dump = _current_dumps[dump_index]
-		add_dump_to_tree(dump, root, dump_index + 1)
-
-
 func setup_tree():
 	clear()
 	
@@ -75,117 +64,109 @@ func setup_tree():
 	hide_root = true
 
 
-func add_dump_to_tree(dump: DumpData, parent: TreeItem, dump_index: int) -> void:
-	# Create dump header
-	var dump_item = create_item(parent)
-	dump_item.collapsed = collapse_level == Logger.LogLevel.SILENT
+## Refresh the tree view from the current dumps
+func refresh_tree():
+	# Clear existing items
+	clear()
+	var root = create_item()
 	
-	# Get all entries
-	var entries = dump.get_all_entries(collated)
-	var header = "Dump %d | %d Entries | Reason: %s" % \
-			[dump_index, entries.size(), dump.metadata.reason]
+	# For each dump, get the appropriate root node and add it to the tree
+	for dump in _current_dumps:
+		add_node_to_tree(
+			dump.collated_root if collated else dump.module_root,
+			root
+		)
+
+
+## Recursively add a log node and its children to the tree
+func add_node_to_tree(node: LogNode, parent: TreeItem) -> void:
+	var tree_item = create_item(parent)
 	
-	dump_item.set_text(Columns.TIMESTAMP, format_time(dump.metadata.timestamp))
-	dump_item.set_text(Columns.MESSAGE, header)
+	match node.type:
+		LogNode.NodeType.DUMP:
+			_setup_dump_item(tree_item, node)
+		LogNode.NodeType.MODULE:
+			_setup_module_item(tree_item, node)
+		LogNode.NodeType.ENTRY:
+			_setup_entry_item(tree_item, node.entry)
+		LogNode.NodeType.FOLD_POINT:
+			_setup_fold_item(tree_item, node.entry)
 	
-	# Color the header row
+	# Add all children recursively
+	for child in node.children:
+		add_node_to_tree(child, tree_item)
+	
+	# Set initial collapsed state based on level and type
+	_set_item_collapsed_state(tree_item, node)
+
+
+## Set up a dump header tree item
+func _setup_dump_item(item: TreeItem, node: LogNode) -> void:
+	var header = "Dump | Reason: %s" % node.entry.message
+	
+	item.set_text(Columns.MESSAGE, header)
 	for col in range(columns):
-		dump_item.set_custom_color(col, print_settings.dump_header_color)
-	
-	if !collated:
-		# Group by module first
-		var module_entries = {}
-		for entry in entries:
-			if not module_entries.has(entry.module):
-				module_entries[entry.module] = []
-			module_entries[entry.module].append(entry)
-		
-		# Add module groups
-		for module in module_entries.keys():
-			var module_item = create_item(dump_item)
-			module_item.set_text(Columns.MODULE, module)
-			module_item.set_text(Columns.MESSAGE, "Module History")
-			add_entries_hierarchically(module_item, module_entries[module])
-	else:
-		# Add all entries hierarchically
-		add_entries_hierarchically(dump_item, entries)
+		item.set_custom_color(col, print_settings.dump_header_color)
 
 
-func add_entries_hierarchically(parent: TreeItem, entries: Array) -> void:
-	var current_parent = parent
-	var last_entry_at_level = {}  # Keep track of last entry at each level
-	var entry_tree_items = {}  # Dictionary to map entries to their tree items
-	
-	# Process each entry
-	for entry in entries:
-		# Find the most appropriate parent by looking for more important levels
-		var parent_entry = null
-		var parent_level = entry.level - 1  # Start from one level more important
-		
-		# Look for the most recent entry of higher importance
-		while parent_level >= Logger.LogLevel.ERROR:  # Stop at ERROR level
-			if last_entry_at_level.has(parent_level):
-				parent_entry = last_entry_at_level[parent_level]
-				break
-			parent_level -= 1  # Move to next more important level
-		
-		# Create the tree item under the appropriate parent
-		var tree_item: TreeItem
-		if parent_entry and entry_tree_items.has(parent_entry):
-			tree_item = add_entry_to_tree(entry, entry_tree_items[parent_entry])
-		else:
-			# If no suitable parent found, add under the dump root
-			tree_item = add_entry_to_tree(entry, current_parent)
-		
-		# Store reference to tree item for this entry
-		entry_tree_items[entry] = tree_item
-		last_entry_at_level[entry.level] = entry
-		
-		# Set collapsed state based on the collapse_level
-		# Only collapse if this entry is less important than collapse_level
-		tree_item.collapsed = entry.level >= collapse_level
+## Set up a module header tree item
+func _setup_module_item(item: TreeItem, node: LogNode) -> void:
+	item.set_text(Columns.MODULE, node.entry.module)
+	item.set_text(Columns.MESSAGE, "Module History")
+	item.set_custom_color(Columns.MODULE, print_settings.module_name_color)
 
 
-func add_entry_to_tree(entry: LogEntry, parent: TreeItem) -> TreeItem:
-	var entry_item = create_item(parent)
-	
-	# Set each column's content
-	entry_item.set_text(Columns.FRAME, str(entry.frame_number))
-	entry_item.set_text(Columns.TIMESTAMP, format_time(entry.timestamp))
-	entry_item.set_text(Columns.MODULE, entry.module)
-	entry_item.set_text(Columns.MESSAGE, entry.message)
-	
-	var level_text = str(entry.level) #Logger.LogLevel.keys()[entry.level]
-	entry_item.set_text(Columns.LEVEL, level_text)
+## Set up a normal log entry tree item
+func _setup_entry_item(item: TreeItem, entry: LogEntry) -> void:
+	item.set_text(Columns.FRAME, str(entry.frame_number))
+	item.set_text(Columns.TIMESTAMP, format_time(entry.timestamp))
+	item.set_text(Columns.MODULE, entry.module)
+	item.set_text(Columns.MESSAGE, entry.message)
+	item.set_text(Columns.LEVEL, Logger.LogLevel.keys()[entry.level])
 	
 	# Color code based on log level
 	var level_color = get_level_color(entry.level)
-	entry_item.set_custom_color(Columns.LEVEL, level_color)
+	item.set_custom_color(Columns.LEVEL, level_color)
 	
 	# Color code message based on importance
-	entry_item.set_custom_color(Columns.MESSAGE, get_message_color(entry.level))
+	item.set_custom_color(Columns.MESSAGE, get_message_color(entry.level))
 	
 	# Color code other columns
-	entry_item.set_custom_color(Columns.MODULE, print_settings.module_name_color)
-	entry_item.set_custom_color(Columns.TIMESTAMP, print_settings.timestamp_color)
-	entry_item.set_custom_color(Columns.FRAME, print_settings.frame_number_color)
+	item.set_custom_color(Columns.MODULE, print_settings.module_name_color)
+	item.set_custom_color(Columns.TIMESTAMP, print_settings.timestamp_color)
+	item.set_custom_color(Columns.FRAME, print_settings.frame_number_color)
 	
-	# Set collapsed state based on the collapse_level
-	entry_item.collapsed = entry.level >= collapse_level
-	
-	# If this entry has frame data, add it as a child
+	# Set up frame data if present
 	if entry.current_frame != null:
-		var frame_item = create_item(entry_item)
+		var frame_item = create_item(item)
 		frame_item.set_text(Columns.MESSAGE, entry.current_frame.format(false))
 		frame_item.set_text(Columns.MODULE, "  ")  # Add some space for indentation
 		
 		for col in range(columns):
 			frame_item.set_custom_color(col, print_settings.frame_data_color)
 		
-		# Frame items are only expanded when we're at FRAME_ONLY level
-		frame_item.collapsed = collapse_level != Logger.LogLevel.FRAME_ONLY
-	
-	return entry_item
+		frame_item.collapsed = true
+
+
+## Set up a fold point tree item
+func _setup_fold_item(item: TreeItem, entry: LogEntry) -> void:
+	item.set_text(Columns.LEVEL, Logger.LogLevel.keys()[entry.level])
+	item.set_text(Columns.MESSAGE, entry.message)
+	item.set_custom_color(Columns.MESSAGE, get_level_color(entry.level))
+
+
+## Determine if a tree item should be initially collapsed
+func _set_item_collapsed_state(item: TreeItem, node: LogNode) -> void:
+	match node.type:
+		LogNode.NodeType.DUMP:
+			item.collapsed = false
+		LogNode.NodeType.MODULE:
+			item.collapsed = false
+		LogNode.NodeType.ENTRY:
+			item.collapsed = node.effective_fold_level >= collapse_level
+		LogNode.NodeType.FOLD_POINT:
+			# Fold points start collapsed unless we're showing everything
+			item.collapsed = collapse_level < Logger.LogLevel.FRAME_ONLY
 
 
 func format_time(unix_time: float) -> String:
