@@ -49,34 +49,32 @@ class_name PrintSettings extends Resource
 @export_group("Log Level Colors")
 ## Color used for error-level log messages.
 @export var error_color := Color.INDIAN_RED
-
 ## Color used for warning-level log messages.
 @export var warning_color := Color.ORANGE
-
 ## Color used for info-level log messages.
 @export var info_color := Color.CYAN
-
 ## Color used for debug-level log messages.
 @export var debug_color := Color.LIME_GREEN
-
 ## Color used for verbose-level log messages.
 @export var verbose_color := Color.MEDIUM_PURPLE
 
 @export_group("Component Colors")
 ## Color used for the timestamp component in log messages.
 @export var timestamp_color := Color.CORNFLOWER_BLUE
-
 ## Color used for the frame number in the dump viewer.
 @export var frame_number_color := Color.LIGHT_STEEL_BLUE
-
 ## Color used for the frame data in the debug viewer.
 @export var frame_data_color := Color.LIME_GREEN
-
 ## Color used for the module name component in log messages.
 @export var module_name_color := Color.MAGENTA
 
+@export_group("Dump Viewer Colors")
+## The color for text 
+@export var default_message_color := Color.WHITE_SMOKE
 ## Color used to start a new dump in the debug viewer.
 @export var dump_header_color := Color.GOLD
+
+
 
 # ProjectSettings paths and default values
 const SETTINGS_PATH = "debug/logging/"
@@ -145,6 +143,22 @@ const DEFAULT_SETTINGS = {
 		"type": TYPE_COLOR,
 		"value": Color.MAGENTA
 	},
+	"colors/frame_number": {
+		"type": TYPE_COLOR,
+		"value": Color.LIGHT_STEEL_BLUE
+	},
+	"colors/frame_data": {
+		"type": TYPE_COLOR,
+		"value": Color.LIME_GREEN
+	},
+	"colors/default_message": {
+		"type": TYPE_COLOR,
+		"value": Color.WHITE_SMOKE
+	},
+	"colors/dump_header": {
+		"type": TYPE_COLOR,
+		"value": Color.GOLD
+	}
 }
 
 
@@ -199,6 +213,10 @@ func load_from_project_settings() -> void:
 	verbose_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/verbose")
 	timestamp_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/timestamp")
 	module_name_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/module_name")
+	frame_number_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/frame_number")
+	frame_data_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/frame_data")
+	default_message_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/default_message")
+	dump_header_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/dump_header")
 
 
 ## Gets the appropriate color for a specific log level.

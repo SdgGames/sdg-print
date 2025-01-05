@@ -1,10 +1,32 @@
-[gd_scene load_steps=5 format=3 uid="uid://bgqpnmnejfmrv"]
+[gd_scene load_steps=7 format=3 uid="uid://bgqpnmnejfmrv"]
 
 [ext_resource type="Script" path="res://addons/sdg-print/dumps/dump_viewer.gd" id="1_nakp4"]
 [ext_resource type="Texture2D" uid="uid://jq5x18n7f4y3" path="res://addons/sdg-print/print_panel/search.svg" id="2_u88hd"]
 [ext_resource type="Script" path="res://addons/sdg-print/dumps/log_tree.gd" id="3_5k1if"]
+[ext_resource type="Script" path="res://addons/sdg-print/print/print_settings.gd" id="4_23ydk"]
 
 [sub_resource type="ButtonGroup" id="ButtonGroup_7qm44"]
+
+[sub_resource type="Resource" id="Resource_s6xlq"]
+script = ExtResource("4_23ydk")
+max_log_entries = 1000
+max_frames = 100
+max_log_files = 15
+show_timestamps = false
+show_module_names = true
+show_log_levels = true
+max_module_width = 20
+error_color = Color(0.803922, 0.360784, 0.360784, 1)
+warning_color = Color(1, 0.647059, 0, 1)
+info_color = Color(0, 1, 1, 1)
+debug_color = Color(0.196078, 0.803922, 0.196078, 1)
+verbose_color = Color(0.576471, 0.439216, 0.858824, 1)
+timestamp_color = Color(0.392157, 0.584314, 0.929412, 1)
+frame_number_color = Color(0.690196, 0.768627, 0.870588, 1)
+frame_data_color = Color(0.196078, 0.803922, 0.196078, 1)
+module_name_color = Color(1, 0, 1, 1)
+default_message_color = Color(0.960784, 0.960784, 0.960784, 1)
+dump_header_color = Color(1, 0.843137, 0, 1)
 
 [node name="DumpViewer" type="VBoxContainer"]
 process_mode = 3
@@ -38,24 +60,32 @@ layout_mode = 2
 
 [node name="Collapse" type="Button" parent="Menu"]
 layout_mode = 2
+theme_override_colors/font_pressed_color = Color(1, 0.843137, 0, 1)
+theme_override_colors/font_color = Color(1, 0.843137, 0, 1)
 toggle_mode = true
 button_group = SubResource("ButtonGroup_7qm44")
 text = "Collapse All"
 
 [node name="Error" type="Button" parent="Menu"]
 layout_mode = 2
+theme_override_colors/font_pressed_color = Color(0.803922, 0.360784, 0.360784, 1)
+theme_override_colors/font_color = Color(0.803922, 0.360784, 0.360784, 1)
 toggle_mode = true
 button_group = SubResource("ButtonGroup_7qm44")
 text = "Error"
 
 [node name="Warning" type="Button" parent="Menu"]
 layout_mode = 2
+theme_override_colors/font_pressed_color = Color(1, 0.647059, 0, 1)
+theme_override_colors/font_color = Color(1, 0.647059, 0, 1)
 toggle_mode = true
 button_group = SubResource("ButtonGroup_7qm44")
 text = "Warning"
 
 [node name="Info" type="Button" parent="Menu"]
 layout_mode = 2
+theme_override_colors/font_pressed_color = Color(0, 1, 1, 1)
+theme_override_colors/font_color = Color(0, 1, 1, 1)
 toggle_mode = true
 button_pressed = true
 button_group = SubResource("ButtonGroup_7qm44")
@@ -63,18 +93,24 @@ text = "Info"
 
 [node name="Debug" type="Button" parent="Menu"]
 layout_mode = 2
+theme_override_colors/font_pressed_color = Color(0.196078, 0.803922, 0.196078, 1)
+theme_override_colors/font_color = Color(0.196078, 0.803922, 0.196078, 1)
 toggle_mode = true
 button_group = SubResource("ButtonGroup_7qm44")
 text = "Debug"
 
 [node name="Verbose" type="Button" parent="Menu"]
 layout_mode = 2
+theme_override_colors/font_pressed_color = Color(0.576471, 0.439216, 0.858824, 1)
+theme_override_colors/font_color = Color(0.576471, 0.439216, 0.858824, 1)
 toggle_mode = true
 button_group = SubResource("ButtonGroup_7qm44")
 text = "Verbose"
 
 [node name="Expand" type="Button" parent="Menu"]
 layout_mode = 2
+theme_override_colors/font_pressed_color = Color(0.196078, 0.803922, 0.196078, 1)
+theme_override_colors/font_color = Color(0.196078, 0.803922, 0.196078, 1)
 toggle_mode = true
 button_group = SubResource("ButtonGroup_7qm44")
 text = "Expand All"
@@ -99,6 +135,7 @@ allow_search = false
 hide_root = true
 select_mode = 1
 script = ExtResource("3_5k1if")
+print_settings = SubResource("Resource_s6xlq")
 
 [connection signal="toggled" from="Menu/CollateButton" to="." method="_on_collate_button_toggled"]
 [connection signal="pressed" from="Menu/Refresh" to="." method="_on_refresh_pressed"]

@@ -191,18 +191,18 @@ func get_level_color(level: Logger.LogLevel) -> Color:
 		Logger.LogLevel.VERBOSE:
 			return print_settings.verbose_color
 		Logger.LogLevel.FRAME_ONLY:
-			return Color.WHITE_SMOKE
+			return print_settings.frame_data_color
 		_:
-			return Color.WHITE_SMOKE
+			return print_settings.default_message_color
 
 
 func get_message_color(level: Logger.LogLevel) -> Color:
 	match level:
 		Logger.LogLevel.ERROR:
-			return print_settings.error_color.darkened(0.2)  # Slightly darker for readability
+			return print_settings.error_color
 		Logger.LogLevel.WARNING:
-			return print_settings.warning_color.darkened(0.2)  # Slightly darker for readability
+			return print_settings.warning_color
 		Logger.LogLevel.FRAME_ONLY:
 			return print_settings.frame_data_color
 		_:
-			return Color.WHITE_SMOKE
+			return print_settings.default_message_color

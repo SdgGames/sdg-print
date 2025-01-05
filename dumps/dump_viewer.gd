@@ -23,6 +23,23 @@ var print_settings: PrintSettings
 func _ready():
 	print_settings = PrintSettings.from_project_settings()
 	tree.print_settings = print_settings
+	
+	# Style the filter buttons to match log levels
+	collapse.add_theme_color_override("font_color", print_settings.dump_header_color)
+	error.add_theme_color_override("font_color", print_settings.error_color)
+	warning.add_theme_color_override("font_color", print_settings.warning_color)
+	info.add_theme_color_override("font_color", print_settings.info_color)
+	debug.add_theme_color_override("font_color", print_settings.debug_color)
+	verbose.add_theme_color_override("font_color", print_settings.verbose_color)
+	expand.add_theme_color_override("font_color", print_settings.frame_data_color)
+	
+	collapse.add_theme_color_override("font_pressed_color", print_settings.dump_header_color)
+	error.add_theme_color_override("font_pressed_color", print_settings.error_color)
+	warning.add_theme_color_override("font_pressed_color", print_settings.warning_color)
+	info.add_theme_color_override("font_pressed_color", print_settings.info_color)
+	debug.add_theme_color_override("font_pressed_color", print_settings.debug_color)
+	verbose.add_theme_color_override("font_pressed_color", print_settings.verbose_color)
+	expand.add_theme_color_override("font_pressed_color", print_settings.frame_data_color)
 
 
 func load_dump_file(path: String):

@@ -7,13 +7,16 @@ class LoggerData extends RefCounted:
 	var log_history: RingBuffer
 	var frame_history: RingBuffer
 	
+	
 	func _init(logger_id: StringName):
 		id = logger_id
+	
 	
 	## Load logger data from a dictionary
 	func load_from_dict(data: Dictionary) -> void:
 		log_history = RingBuffer.from_dict(data.log_history, LogEntry.from_dict.bind(id))
 		frame_history = RingBuffer.from_dict(data.frame_history, LogEntry.from_dict.bind(id))
+	
 	
 	## Get all entries.
 	func get_entries(min_level := Logger.LogLevel.FRAME_ONLY) -> Array[LogEntry]:
@@ -75,33 +78,33 @@ func _build_view_trees() -> void:
 	collated_root = LogNode.new(LogNode.NodeType.DUMP, dump_header)
 	collated_root.consume_entries(all_entries)
 	
-	## Build module view
-	#module_root = LogNode.new(LogNode.NodeType.DUMP, dump_header)
-	#
-	## Sort module IDs for consistent ordering
-	#var module_ids = loggers.keys()
-	#module_ids.sort()
-	#
-	## Create module nodes and feed them their entries
-	#for module_id in module_ids:
-		#var logger = loggers[module_id]
-		#var entries = logger.get_entries()
-		#
-		## Sort entries by timestamp, newest first
-		#entries.sort_custom(
-			#func(a: LogEntry, b: LogEntry) -> bool:
-				#return a.timestamp > b.timestamp
-		#)
-		#
-		## Create and add module node
-		#var module_node = LogNode.new(
-			#LogNode.NodeType.MODULE,
-			#LogEntry.new(Logger.LogLevel.SILENT, module_id, "", null)
-		#)
-		#module_root.add_child(module_node)
-		#
-		## Let the module node process its entries
-		#module_node.consume_entries(entries)
+	# Build module view
+	module_root = LogNode.new(LogNode.NodeType.DUMP, dump_header)
+	
+	# Sort module IDs for consistent ordering
+	var module_ids = loggers.keys()
+	module_ids.sort()
+	
+	# Create module nodes and feed them their entries
+	for module_id in module_ids:
+		var logger = loggers[module_id]
+		var entries = logger.get_entries()
+		
+		# Sort entries by timestamp, newest first
+		entries.sort_custom(
+			func(a: LogEntry, b: LogEntry) -> bool:
+				return a.timestamp > b.timestamp
+		)
+		
+		# Create and add module node
+		var module_node = LogNode.new(
+			LogNode.NodeType.MODULE,
+			LogEntry.new(Logger.LogLevel.SILENT, module_id, "", null)
+		)
+		module_root.add_child(module_node)
+		
+		# Let the module node process its entries
+		module_node.consume_entries(entries)
 
 
 ## Get all entries from all loggers in timestamp order (newest first)
