@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dyvo476ri0j5t"]
 
-[ext_resource type="Script" path="res://addons/sdg-print/Print.gd" id="1_upvmh"]
+[ext_resource type="Script" path="res://addons/sdg-print/print/print.gd" id="1_upvmh"]
 
 [node name="Print" type="Node2D"]
 process_priority = -2147483648

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bi7t4jmrunvo"
-path="res://.godot/imported/LineEdit.svg-15733867e8fc30f0c8f9392bbcf17451.ctex"
+uid="uid://dw80lsit5d8hc"
+path="res://.godot/imported/print_icon.svg-d14abb0974c3e605d0f16bfd585d74ba.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/sdg-print/LineEdit.svg"
-dest_files=["res://.godot/imported/LineEdit.svg-15733867e8fc30f0c8f9392bbcf17451.ctex"]
+source_file="res://addons/sdg-print/print/print_icon.svg"
+dest_files=["res://.godot/imported/print_icon.svg-d14abb0974c3e605d0f16bfd585d74ba.ctex"]
 
 [params]
 

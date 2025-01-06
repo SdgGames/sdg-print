@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cq8tt6d7ohm8q"
-path="res://.godot/imported/CodeEdit.svg-7e16f59d2327591d2c16d6bf21a26891.ctex"
+uid="uid://cff56jv0hgcew"
+path="res://.godot/imported/logger_icon.svg-15050e73f71a80b6f28eb38d1c8c6aa1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/sdg-print/CodeEdit.svg"
-dest_files=["res://.godot/imported/CodeEdit.svg-7e16f59d2327591d2c16d6bf21a26891.ctex"]
+source_file="res://addons/sdg-print/logger/logger_icon.svg"
+dest_files=["res://.godot/imported/logger_icon.svg-15050e73f71a80b6f28eb38d1c8c6aa1.ctex"]
 
 [params]
 

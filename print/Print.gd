@@ -1,4 +1,4 @@
-@icon("res://addons/sdg-print/Print_icon.svg")
+@icon("res://addons/sdg-print/print/print_icon.svg")
 class_name SDG_Print extends Node
 ## Print singleton. Auto-registers under the name "Print"
 ##
@@ -46,36 +46,63 @@ class_name SDG_Print extends Node
 
 enum {
 	SILENT = 0,
+	## [br]Mirrors the values of [enum Logger.LogLevel]. Functions like [method Print.from] can take 
+	## this as an argument instead of taking [enum Logger.LogLevel]. For example, 
+	## [code]Print.from("Player_Submodule_Logger", "Hello World!", Print.INFO)[/code]
 	ERROR = 1,
 	WARNING = 2,
 	INFO = 3,
 	DEBUG = 4,
-	## [br]Mirrors the values of [enum Logger.LogLevel]. Functions like [method Print.from] can take 
-	## this as an argument instead of taking [enum Logger.LogLevel]. For example, 
-	## [code]Print.from("Player_Submodule_Logger", "Hello World!", Print.INFO)[/code]
-	VERBOSE = 5
+	VERBOSE = 5,
+	FRAME_ONLY = 6, ## Internal value for storing frames in dump files. Do not use.
 }
 
 ## The default [enum Logger.LogLevel] for printing from the "Print" logger.
-const self_print_level := Logger.LogLevel.VERBOSE
+const self_print_level := Logger.LogLevel.WARNING
 ## The default [enum Logger.LogLevel] for archiving from the "Print" logger.
 const self_archive_level := Logger.LogLevel.VERBOSE
+
+## Global print settings used as defaults for all loggers without custom settings.
+@export var settings: PrintSettings
 
 ## The number of warnings encountered since the game started.
 @export var warning_count := 0
 ## The number of errors encountered since the game started.
 @export var error_count := 0
 
+## Current session's dump file path
+var current_dump_file: String = ""
+
 # Contains all of the active [Logger]s in the project.
 var _logs := {}
 # References to the global and local logger instances.
 var _global_logger: Logger
 var _print_logger: Logger
+# Current width needed to align all logger module names.
+var _current_module_width := 0
 
 
+# Do all of our work as early as possible so other classes can print from their _ready calls.
 func _init():
-	_print_logger = Logger.new()._second_init("Print", self_print_level, self_archive_level, Logger.LogType.SINGLETON)
+	# Register project settings
+	PrintSettings._register_settings()
+	
+	# Initialize global settings
+	settings = PrintSettings.from_project_settings()
+	
+	# Clean up extra files from previous sessions.
+	ErrorDump.cleanup_old_dumps(settings.max_log_files)
+	
+	# Create the print logger with default settings
+	_print_logger = Logger.new()._second_init(
+		"Print", 
+		self_print_level,
+		self_archive_level,
+		Logger.LogType.SINGLETON,
+		settings
+	)
 	add_child(_print_logger)
+	_print_logger.process_priority = process_priority + 1
 	_global_logger = create_logger("Global", VERBOSE, VERBOSE)
 
 
@@ -91,16 +118,23 @@ func _ready():
 	console.add_command("silence_non_error_prints", self, "silence_non_error_printing")\
 			.set_description("Disables all non-error printing.")\
 			.register()
-	console.add_command("dump_logger", self, "_dump_logger")\
-			.add_argument("identifier", TYPE_STRING)\
-			.set_description("Dumps all of the print statements for the specified logger.")\
-			.register()
-	console.add_command("dump_all_loggers", self, "dump_loggers")\
-			.set_description("Dumps all of the prints stored in all of the loggers. This can be a LOT of text.")\
+	console.add_command("dump_all_loggers", self, "_dump_loggers")\
+			.set_description("Dumps all of the prints stored in all of the loggers. Dumps to file, but also copies to the clipboard.")\
 			.register()
 	console.add_command("list_loggers", self, "list_loggers")\
 			.set_description("Prints the names of all of the loggers to the console.")\
 			.register()
+	console.add_command("clear_all_dumps", self, "_delete_dumps")\
+			.set_description("Deletes all of the dump files in user://dumps.")\
+			.register()
+
+
+# Dump loggers when we detect that the application is exiting.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		# Create the final dump
+		_print_logger.info("Application closing, final dump created")
+		var dump_str = flush_logs("", ErrorDump.DumpReason.APP_CLOSE)
 
 
 ## Creates and returns the [Logger] instance for the module that matches [param identifier].
@@ -109,18 +143,29 @@ func _ready():
 ## (such as during [code]_ready[/code] calls in scene creation), you can safely call
 ## [code]get_logger(id, true)[/code] to generate the [Logger] object. The object will default to
 ## [code](VERBOSE, VERBOSE)[/code] until [method create_logger] is finally called.
-func create_logger(identifier, print_level, archive_level) -> Logger:
+func create_logger(identifier, print_level, archive_level, custom_settings: PrintSettings = null) -> Logger:
 	var id = _get_id(identifier)
 	if id in _logs:
 		_print_logger.debug("Print.create_logger found existing logger %s." % id)
 		var logger: Logger = _logs[id]
 		logger.print_level = print_level
 		logger.archive_level = archive_level
+		if custom_settings:
+			logger.settings = custom_settings
 		return logger
 	else:
 		_print_logger.debug("Print.create_logger creating new logger %s." % id)
-		var logger = Logger.new()._second_init(id, Logger.LogLevel.values()[print_level], \
-				Logger.LogLevel.values()[archive_level], _get_type(identifier))
+		# Update the module width if this logger has a longer name
+		_current_module_width = max(_current_module_width, id.length())
+		
+		var logger_settings = custom_settings if custom_settings else settings
+		var logger = Logger.new()._second_init(
+			id,
+			Logger.LogLevel.values()[print_level],
+			Logger.LogLevel.values()[archive_level],
+			_get_type(identifier),
+			logger_settings
+		)
 		add_child(logger)
 		_logs[id] = logger
 		return logger
@@ -186,10 +231,22 @@ func throw_assert(message: String, dump_error := true):
 	_global_logger.throw_assert(message, dump_error)
 
 
-## Calls [method Logger.error_dump] on each of the [Logger]s in the project.
-func dump_all():
+## Dumps all logger data to disk, then resets all loggers.
+## Use this if you just logged a lot of data (like generating a world, etc.)
+## Use [param context] to indicate why this flush was performed. This will appear
+## at the top of the dump log in the viewer.
+func flush_logs(context := "", reason := ErrorDump.DumpReason.FLUSH):
+	# Logging an info will also allow us to fold lower quality logs at the start of the dump.
+	_print_logger.info("Dumping all loggers to file.")
+	
+	var logger_data = {}
 	for id in _logs.keys():
-		_logs[id].error_dump()
+		logger_data[id] = _logs[id].to_dict()
+	
+	if ErrorDump.save_dump(logger_data, reason, context) != OK:
+		# Do not trigger an error dump when throwing an error here.
+		_print_logger.error("Failed to save dump to file!", false)
+	start_all()
 
 
 ## Pass-through to the Global print singleton.
@@ -254,19 +311,14 @@ func list_loggers() -> Array:
 	return _logs.keys()
 
 
-## Calls [Logger.error_dump] on EVERY logger in the project. Be careful, this is a LOT of text.
-func dump_loggers():
-	for id in _logs.keys():
-		_logs[id].error_dump()
+# Function for the Console to grab onto. Calls [Logger.error_dump] on EVERY logger in the project.
+func _dump_loggers():
+	var log_string = flush_logs("User initiated dump from console.", ErrorDump.DumpReason.MANUAL)
 
 
-# Function for the Console to grab onto. Users can just get the logger first.
-func _dump_logger(identifier):
-	var logger_id = _get_id(identifier)
-	if _logs.has(logger_id):
-		_logs[logger_id].error_dump()
-	else:
-		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
+# Function for the Console to grab onto.
+func _delete_dumps():
+	ErrorDump.cleanup_old_dumps(0)
 
 
 # Adds a new [Logger] to the logging system. Used by the [Logger] class, use [method create_logger] instead.
@@ -278,7 +330,7 @@ func _register_logger(logger: Logger):
 		# Else, we already added this logger in the create_logger call.
 		return
 	_logs[logger.id] = logger
-	_print_logger.info("Registered %s logger of type %s." % [logger.id, Logger.LogType.find_key(logger._log_type).to_camel_case()])
+	_print_logger.debug("Registered %s logger of type %s." % [logger.id, Logger.LogType.find_key(logger._log_type).to_camel_case()])
 	if has_node("/root/Console"):
 		logger._console = $"/root/Console"
 
@@ -288,7 +340,15 @@ func _register_logger(logger: Logger):
 func _unregister_logger(logger: Logger):
 	if logger.id in _logs:
 		_logs.erase(logger.id)
-		_print_logger.info("Un-Registered %s logger of type %s." % [logger.id, Logger.LogType.find_key(logger._log_type).to_camel_case()])
+		_print_logger.debug("Un-Registered %s logger of type %s." % [
+			logger.id, 
+			Logger.LogType.find_key(logger._log_type).to_camel_case()
+		])
+		
+		# Recalculate the maximum module width
+		_current_module_width = 0
+		for id in _logs.keys():
+			_current_module_width = max(_current_module_width, id.length())
 	else:
 		_print_logger.error("A logger with the identifier '%s' is not registered." % logger.id)
 
@@ -304,7 +364,7 @@ func _unregister_logger(logger: Logger):
 #        Any object can be used as a key, but it will convert with str() and may
 #        not be easily human-readable as a result.
 func _get_id(identifier) -> String:
-	var id = ""
+	var id := &""
 	match _get_type(identifier):
 		Logger.LogType.SINGLETON:
 			id = identifier
