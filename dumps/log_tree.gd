@@ -27,6 +27,7 @@ func load_dump_file(path: String):
 	_current_dumps = ErrorDump.load_dumps(path)
 	# Reverse once during loading to get newest first
 	_current_dumps.reverse()
+	
 	refresh_tree()
 
 
@@ -45,7 +46,7 @@ func setup_tree():
 	
 	# Configure column sizes
 	set_column_expand(Columns.FRAME, false)
-	set_column_custom_minimum_width(Columns.FRAME, 40)
+	set_column_custom_minimum_width(Columns.FRAME, 60)
 	
 	set_column_expand(Columns.TIMESTAMP, false)
 	set_column_custom_minimum_width(Columns.TIMESTAMP, 70)
@@ -54,7 +55,7 @@ func setup_tree():
 	set_column_custom_minimum_width(Columns.LEVEL, 110)
 	
 	set_column_expand(Columns.MODULE, false)
-	set_column_custom_minimum_width(Columns.MODULE, 140)
+	set_column_custom_minimum_width(Columns.MODULE, 200)
 	
 	set_column_expand(Columns.MESSAGE, true)
 	set_column_custom_minimum_width(Columns.MESSAGE, 300)
@@ -72,25 +73,23 @@ func refresh_tree():
 	
 	# For each dump, get the appropriate root node and add it to the tree
 	for dump in _current_dumps:
-		add_node_to_tree(
-			dump.collated_root if collated else dump.module_root,
-			root
-		)
+		add_node_to_tree(dump.collated_root if collated else dump.module_root, root, true)
 
 
 ## Recursively add a log node and its children to the tree
-func add_node_to_tree(node: LogNode, parent: TreeItem) -> void:
+func add_node_to_tree(node: LogNode, parent: TreeItem, is_dump_root := false) -> void:
 	var tree_item = create_item(parent)
 	
-	match node.type:
-		LogNode.NodeType.DUMP:
-			_setup_dump_item(tree_item, node)
-		LogNode.NodeType.MODULE:
-			_setup_module_item(tree_item, node)
-		LogNode.NodeType.ENTRY:
-			_setup_entry_item(tree_item, node.entry)
-		LogNode.NodeType.FOLD_POINT:
-			_setup_fold_item(tree_item, node.entry)
+	if is_dump_root:
+		_setup_dump_item(tree_item, node)
+	else:
+		match node.type:
+			LogNode.NodeType.ROOT:
+				_setup_module_item(tree_item, node)
+			LogNode.NodeType.ENTRY:
+				_setup_entry_item(tree_item, node.entry)
+			LogNode.NodeType.FOLD_POINT:
+				_setup_fold_item(tree_item, node.entry)
 	
 	# Add all children recursively
 	for child in node.children:
@@ -102,9 +101,7 @@ func add_node_to_tree(node: LogNode, parent: TreeItem) -> void:
 
 ## Set up a dump header tree item
 func _setup_dump_item(item: TreeItem, node: LogNode) -> void:
-	var header = "Dump | Reason: %s" % node.entry.message
-	
-	item.set_text(Columns.MESSAGE, header)
+	item.set_text(Columns.MESSAGE, node.entry.message)
 	for col in range(columns):
 		item.set_custom_color(col, print_settings.dump_header_color)
 
@@ -151,30 +148,33 @@ func _setup_entry_item(item: TreeItem, entry: LogEntry) -> void:
 ## Set up a fold point tree item
 func _setup_fold_item(item: TreeItem, entry: LogEntry) -> void:
 	item.set_text(Columns.LEVEL, Logger.LogLevel.keys()[entry.level])
-	item.set_text(Columns.MESSAGE, entry.message)
-	item.set_custom_color(Columns.MESSAGE, get_level_color(entry.level))
+	item.set_text(Columns.MODULE, "   ---")
+	item.set_custom_color(Columns.MODULE, print_settings.module_name_color)
+	item.set_custom_color(Columns.LEVEL, get_level_color(entry.level))
 
 
 ## Determine if a tree item should be initially collapsed
 func _set_item_collapsed_state(item: TreeItem, node: LogNode) -> void:
 	match node.type:
-		LogNode.NodeType.DUMP:
-			item.collapsed = false
-		LogNode.NodeType.MODULE:
-			item.collapsed = false
-		LogNode.NodeType.ENTRY:
+		LogNode.NodeType.ROOT, LogNode.NodeType.ENTRY:
 			item.collapsed = node.effective_fold_level >= collapse_level
 		LogNode.NodeType.FOLD_POINT:
 			# Fold points start collapsed unless we're showing everything
 			item.collapsed = collapse_level < Logger.LogLevel.FRAME_ONLY
 
 
-func format_time(unix_time: float) -> String:
-	var datetime = Time.get_datetime_dict_from_unix_time(unix_time)
-	return "%02d:%02d:%02d" % [
-		datetime.hour,
-		datetime.minute,
-		datetime.second
+## Format a microsecond timestamp as HH:MM:SS.mmm
+func format_time(usec: int) -> String:
+	var msec = usec / 1000  # Convert to milliseconds for display
+	var seconds = msec / 1000
+	var minutes = seconds / 60
+	var hours = minutes / 60
+	
+	return "%02d:%02d\n%02d.%03d" % [
+		hours % 24,
+		minutes % 60,
+		seconds % 60,
+		msec % 1000
 	]
 
 

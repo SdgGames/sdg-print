@@ -1,3 +1,4 @@
+@tool
 class_name ErrorDump extends RefCounted
 ## Static class that handles saving and loading of error dump files.
 ## Manages dump file versioning, formatting, and aggregation across game sessions.
@@ -138,8 +139,10 @@ static func load_dumps(file_path: String) -> Array[DumpData]:
 		return []
 	
 	var dump_data: Array[DumpData] = []
-	for dump_dict in dumps:
+	for idx in dumps.size():
+		var dump_dict = dumps[idx]
 		var dump = DumpData.new()
+		dump.dump_index = idx + 1
 		if dump.load_from_dict(dump_dict):
 			dump_data.append(dump)
 	

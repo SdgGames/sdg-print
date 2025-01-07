@@ -7,7 +7,7 @@
 
 [sub_resource type="ButtonGroup" id="ButtonGroup_7qm44"]
 
-[sub_resource type="Resource" id="Resource_s6xlq"]
+[sub_resource type="Resource" id="Resource_8ttrx"]
 script = ExtResource("4_23ydk")
 max_log_entries = 1000
 max_frames = 100
@@ -134,8 +134,9 @@ column_titles_visible = true
 allow_search = false
 hide_root = true
 select_mode = 1
+scroll_horizontal_enabled = false
 script = ExtResource("3_5k1if")
-print_settings = SubResource("Resource_s6xlq")
+print_settings = SubResource("Resource_8ttrx")
 
 [connection signal="toggled" from="Menu/CollateButton" to="." method="_on_collate_button_toggled"]
 [connection signal="pressed" from="Menu/Refresh" to="." method="_on_refresh_pressed"]

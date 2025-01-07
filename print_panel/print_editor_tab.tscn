@@ -26,5 +26,4 @@ drag_to_rearrange_enabled = true
 
 [node name="Active Dump" parent="Tabs" instance=ExtResource("2_cwk68")]
 layout_mode = 2
-size_flags_vertical = 3
 metadata/_tab_index = 0

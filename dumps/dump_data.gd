@@ -33,11 +33,26 @@ class LoggerData extends RefCounted:
 		
 		return entries
 
-
 ## Information about when and why this dump was created
 var metadata: Dictionary
 ## Collection of logger data, keyed by logger ID
 var loggers: Dictionary = {}
+## Index of this dump in the file (set by viewer)
+var dump_index: int = -1
+
+## Get a formatted header string for this dump
+var formatted_header: String:
+	get:
+		var datetime = Time.get_datetime_dict_from_unix_time(metadata.timestamp)
+		var date_str = "%02d-%02d-%d %02d:%02d:%02d" % [
+			datetime.month,
+			datetime.day,
+			datetime.year,
+			datetime.hour,
+			datetime.minute,
+			datetime.second
+		]
+		return "Dump %d | %s | Reason: %s" % [dump_index, date_str, metadata.reason]
 
 # Root nodes for different views
 var collated_root: LogNode
@@ -69,17 +84,17 @@ func _build_view_trees() -> void:
 	var dump_header = LogEntry.new(
 		Logger.LogLevel.SILENT,
 		&"DUMP",
-		"Dump Reason: %s" % metadata.reason,
+		formatted_header,
 		null
 	)
 	
 	# Build collated view
 	var all_entries = _get_collated_entries()
-	collated_root = LogNode.new(LogNode.NodeType.DUMP, dump_header)
+	collated_root = LogNode.new(LogNode.NodeType.ROOT, dump_header)
 	collated_root.consume_entries(all_entries)
 	
 	# Build module view
-	module_root = LogNode.new(LogNode.NodeType.DUMP, dump_header)
+	module_root = LogNode.new(LogNode.NodeType.ROOT, dump_header)
 	
 	# Sort module IDs for consistent ordering
 	var module_ids = loggers.keys()
@@ -98,7 +113,7 @@ func _build_view_trees() -> void:
 		
 		# Create and add module node
 		var module_node = LogNode.new(
-			LogNode.NodeType.MODULE,
+			LogNode.NodeType.ROOT,
 			LogEntry.new(Logger.LogLevel.SILENT, module_id, "", null)
 		)
 		module_root.add_child(module_node)

@@ -80,4 +80,7 @@ func _on_verbose_pressed() -> void:
 
 
 func _on_expand_pressed() -> void:
-	tree.collapse_level = Logger.LogLevel.FRAME_ONLY
+	if tree.collapse_level == Logger.LogLevel.FRAME_ONLY:
+		tree.collapse_level = Logger.LogLevel.FRAME_ONLY + 1
+	else:
+		tree.collapse_level = Logger.LogLevel.FRAME_ONLY
