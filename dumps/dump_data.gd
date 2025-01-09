@@ -100,10 +100,17 @@ func _build_view_trees() -> void:
 	var module_ids = loggers.keys()
 	module_ids.sort()
 	
+	var empty_modules = ""
+	
 	# Create module nodes and feed them their entries
 	for module_id in module_ids:
 		var logger = loggers[module_id]
 		var entries = logger.get_entries()
+		
+		# Don't add empty modules - they just add visual clutter.
+		if entries.size() == 0:
+			empty_modules += module_id if empty_modules == "" else ", %s" % module_id
+			continue
 		
 		# Sort entries by timestamp, newest first
 		entries.sort_custom(
@@ -120,6 +127,13 @@ func _build_view_trees() -> void:
 		
 		# Let the module node process its entries
 		module_node.consume_entries(entries)
+		
+	# Add a list of all empty modules (in case the user is looking for them).
+	if empty_modules != "":
+		module_root.add_child(LogNode.new(
+			LogNode.NodeType.ENTRY,
+			LogEntry.new(Logger.LogLevel.INFO, "", "Modules with no logs to display:\n" + empty_modules, null)
+		))
 
 
 ## Get all entries from all loggers in timestamp order (newest first)

@@ -127,6 +127,9 @@ func _ready():
 	console.add_command("clear_all_dumps", self, "_delete_dumps")\
 			.set_description("Deletes all of the dump files in user://dumps.")\
 			.register()
+	console.add_command("push_test_error", self, "_test_error")\
+			.set_description("Pushes an error to the console and dump file. Logs at each level first, ending with the error.")\
+			.register()
 
 
 # Dump loggers when we detect that the application is exiting.
@@ -316,9 +319,25 @@ func _dump_loggers():
 	var log_string = flush_logs("User initiated dump from console.", ErrorDump.DumpReason.MANUAL)
 
 
-# Function for the Console to grab onto.
+# Function for the Console to grab onto. Deletes all dumps from the filesystem.
 func _delete_dumps():
 	ErrorDump.cleanup_old_dumps(0)
+
+
+# Function for the Console to grab onto. Prints a log at each level, ending with an Error.
+func _test_error():
+	var levels = [_global_logger.print_level, _global_logger.archive_level]
+	_global_logger.print_level = Logger.LogLevel.VERBOSE
+	
+	var l = Print.get_logger("Player")
+	_global_logger.start_frame("Testing frame data output.")
+	_global_logger.in_frame("About to print at each level.")
+	_global_logger.end_frame()
+	_global_logger.verbose("Test print - verbose")
+	_global_logger.debug("Test print - debug")
+	_global_logger.info("Test print - info")
+	_global_logger.warning("Test print - warning")
+	_global_logger.error("Test error")
 
 
 # Adds a new [Logger] to the logging system. Used by the [Logger] class, use [method create_logger] instead.

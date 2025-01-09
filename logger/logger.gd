@@ -173,8 +173,13 @@ func verbose(message: String):
 ## Clears the previous frame's data and prepares for a new frame capture.
 ## This should be called at the start of whatever process you're tracking
 ## (usually at the start of a frame, hence the name).
+## Any title you give will be displayed at the start of the frame. If no title
+## is given, the Logger ID will be used instead.
 func start_frame(title := ""):
-	_current_frame = FrameLog.new(id, title)
+	if title == "":
+		_current_frame = FrameLog.new(id)
+	else:
+		_current_frame = FrameLog.new(title)
 	_frame_history.push(LogEntry.wrap_frame(_current_frame, id))
 	_has_frame_changes = title != ""
 

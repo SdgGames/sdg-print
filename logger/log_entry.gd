@@ -127,8 +127,4 @@ static func from_dict(data: Dictionary, module: StringName) -> LogEntry:
 	entry.frame_number = data.frame_number
 	if data.current_frame != null:
 		entry.current_frame = FrameLog.from_dict(data.current_frame)
-		# We don't store a message to save space. If we are loading this from a file,
-		# let's use the space to generate a meaningful message.
-		if entry.level == Logger.LogLevel.FRAME_ONLY:
-			entry.message = "Frame %s %s" % [entry.frame_number, entry.current_frame.title]
 	return entry

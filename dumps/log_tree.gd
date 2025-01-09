@@ -2,19 +2,20 @@
 extends Tree
 
 enum Columns {
-	MODULE,
-	TIMESTAMP,
-	MESSAGE,
 	LEVEL,
+	MODULE,
+	MESSAGE,
+	SYMBOL,
+	TIMESTAMP,
 	FRAME,
 }
 
-@export var print_settings: PrintSettings
 @export var collated := true
 @export var collapse_level: Logger.LogLevel = Logger.LogLevel.INFO:
 	set(value):
 		collapse_level = value
 		refresh_tree()
+var print_settings: PrintSettings
 
 # Current dump data
 var _current_dumps: Array[DumpData]
@@ -35,30 +36,34 @@ func setup_tree():
 	clear()
 	
 	# Create columns for each part of the log entry
-	columns = 5
+	columns = 6
 	
 	# Set up column properties
-	set_column_title(Columns.MODULE, "Module")
-	set_column_title(Columns.TIMESTAMP, "Time")
 	set_column_title(Columns.LEVEL, "Level")
+	set_column_title(Columns.MODULE, "Module")
 	set_column_title(Columns.MESSAGE, "Message")
+	set_column_title(Columns.SYMBOL, "🔗")
+	set_column_title(Columns.TIMESTAMP, "Time")
 	set_column_title(Columns.FRAME, "Frame")
 	
 	# Configure column sizes
-	set_column_expand(Columns.FRAME, false)
-	set_column_custom_minimum_width(Columns.FRAME, 60)
+	set_column_expand(Columns.LEVEL, false)
+	set_column_custom_minimum_width(Columns.LEVEL, 180)
+	
+	set_column_expand(Columns.MODULE, false)
+	set_column_custom_minimum_width(Columns.MODULE, 120)
+	
+	set_column_expand(Columns.MESSAGE, true)
+	set_column_custom_minimum_width(Columns.MESSAGE, 300)
+	
+	set_column_expand(Columns.SYMBOL, false)
+	set_column_custom_minimum_width(Columns.SYMBOL, 30)
 	
 	set_column_expand(Columns.TIMESTAMP, false)
 	set_column_custom_minimum_width(Columns.TIMESTAMP, 70)
 	
-	set_column_expand(Columns.LEVEL, false)
-	set_column_custom_minimum_width(Columns.LEVEL, 110)
-	
-	set_column_expand(Columns.MODULE, false)
-	set_column_custom_minimum_width(Columns.MODULE, 200)
-	
-	set_column_expand(Columns.MESSAGE, true)
-	set_column_custom_minimum_width(Columns.MESSAGE, 300)
+	set_column_expand(Columns.FRAME, false)
+	set_column_custom_minimum_width(Columns.FRAME, 60)
 	
 	# Show column titles
 	set_column_titles_visible(true)
@@ -89,7 +94,7 @@ func add_node_to_tree(node: LogNode, parent: TreeItem, is_dump_root := false) ->
 			LogNode.NodeType.ENTRY:
 				_setup_entry_item(tree_item, node.entry)
 			LogNode.NodeType.FOLD_POINT:
-				_setup_fold_item(tree_item, node.entry)
+				_setup_fold_item(tree_item, node.effective_fold_level + 1)
 	
 	# Add all children recursively
 	for child in node.children:
@@ -109,8 +114,9 @@ func _setup_dump_item(item: TreeItem, node: LogNode) -> void:
 ## Set up a module header tree item
 func _setup_module_item(item: TreeItem, node: LogNode) -> void:
 	item.set_text(Columns.MODULE, node.entry.module)
-	item.set_text(Columns.MESSAGE, "Module History")
+	item.set_text(Columns.MESSAGE, "-- %s Module History --" % node.entry.module)
 	item.set_custom_color(Columns.MODULE, print_settings.module_name_color)
+	item.set_custom_color(Columns.MESSAGE, print_settings.module_name_color)
 
 
 ## Set up a normal log entry tree item
@@ -135,32 +141,47 @@ func _setup_entry_item(item: TreeItem, entry: LogEntry) -> void:
 	
 	# Set up frame data if present
 	if entry.current_frame != null:
-		var frame_item = create_item(item)
-		frame_item.set_text(Columns.MESSAGE, entry.current_frame.format(false))
-		frame_item.set_text(Columns.MODULE, "  ")  # Add some space for indentation
-		
-		for col in range(columns):
-			frame_item.set_custom_color(col, print_settings.frame_data_color)
-		
-		frame_item.collapsed = true
+		# This entry is only frame data. Put the title inside the fold.
+		if entry.level == Logger.LogLevel.FRAME_ONLY:
+			item.set_text(Columns.SYMBOL, "⊡")
+			item.set_text(Columns.TIMESTAMP, "")
+			_setup_frame_data(item, entry)
+		else:
+			var frame_parent = create_item(item)
+			item.set_text(Columns.SYMBOL, "⧉")
+			frame_parent.set_text(Columns.SYMBOL, "⧉")
+			frame_parent.set_text(Columns.LEVEL, "⧉ FRAME")
+			frame_parent.set_custom_color(Columns.LEVEL, level_color)
+			_setup_frame_data(frame_parent, entry)
+
+
+## Set up an item for frame data.
+func _setup_frame_data(parent: TreeItem, entry: LogEntry):
+	parent.set_text(Columns.MESSAGE, entry.current_frame.title)
+	parent.set_custom_color(Columns.MESSAGE, print_settings.frame_data_color)
+	parent.collapsed = Logger.LogLevel.FRAME_ONLY >= collapse_level
+	var frame_item = create_item(parent)
+	frame_item.set_text(Columns.MESSAGE, entry.current_frame.format(false))
+	frame_item.set_custom_color(Columns.MESSAGE, print_settings.frame_data_color)
 
 
 ## Set up a fold point tree item
-func _setup_fold_item(item: TreeItem, entry: LogEntry) -> void:
-	item.set_text(Columns.LEVEL, Logger.LogLevel.keys()[entry.level])
+func _setup_fold_item(item: TreeItem, level: int) -> void:
+	item.set_text(Columns.LEVEL, "   ---")
 	item.set_text(Columns.MODULE, "   ---")
-	item.set_custom_color(Columns.MODULE, print_settings.module_name_color)
-	item.set_custom_color(Columns.LEVEL, get_level_color(entry.level))
+	item.set_text(Columns.MESSAGE, "   ---")
+	item.set_text(Columns.SYMBOL, "-")
+	item.set_text(Columns.TIMESTAMP, "---")
+	item.set_text(Columns.FRAME, "---")
+	
+	var color = get_level_color(level)
+	for col in range(columns):
+		item.set_custom_color(col, color)
 
 
 ## Determine if a tree item should be initially collapsed
 func _set_item_collapsed_state(item: TreeItem, node: LogNode) -> void:
-	match node.type:
-		LogNode.NodeType.ROOT, LogNode.NodeType.ENTRY:
-			item.collapsed = node.effective_fold_level >= collapse_level
-		LogNode.NodeType.FOLD_POINT:
-			# Fold points start collapsed unless we're showing everything
-			item.collapsed = collapse_level < Logger.LogLevel.FRAME_ONLY
+	item.collapsed = node.effective_fold_level >= collapse_level
 
 
 ## Format a microsecond timestamp as HH:MM:SS.mmm
