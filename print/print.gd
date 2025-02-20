@@ -187,7 +187,7 @@ func get_logger(identifier, get_or_create := false) -> Logger:
 	elif get_or_create:
 		return create_logger(identifier, VERBOSE, VERBOSE)
 	else:
-		_print_logger.throw_assert("No logger exists with name %s." % id, false)
+		_print_logger.error("No logger exists with name %s." % id)
 		return null
 
 
@@ -199,7 +199,7 @@ func from(identifier, message: String, level = Logger.LogLevel.DEBUG):
 	if _logs.has(logger_id):
 		_logs[logger_id].print_at_level(message, level)
 	else:
-		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
+		_print_logger.error("No log with this identifier: %s" % logger_id)
 
 
 ## Gets the frame data string from the specified logger.
@@ -210,7 +210,7 @@ func get_frame_from(identifier, prepend_title := false) -> String:
 	if _logs.has(logger_id):
 		return _logs[logger_id].get_frame(prepend_title)
 	else:
-		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
+		_print_logger.error("No log with this identifier: %s" % logger_id)
 		return ""
 
 
@@ -221,17 +221,8 @@ func get_frame_title_from(identifier) -> String:
 	if _logs.has(logger_id):
 		return _logs[logger_id].get_frame_title()
 	else:
-		_print_logger.throw_assert("No log with this identifier: %s" % logger_id, false)
+		_print_logger.error("No log with this identifier: %s" % logger_id)
 		return ""
-
-
-## Pass-through to the Global print singleton.
-## Logs and error and throws an assert with the given message.
-## Asserts pause code execution.
-## By default, this will dump the entire message history to the console.
-## If you just want to print the current error, set [param dump_error] to [code]false[/code].
-func throw_assert(message: String, dump_error := true):
-	_global_logger.throw_assert(message, dump_error)
 
 
 ## Dumps all logger data to disk, then resets all loggers.
