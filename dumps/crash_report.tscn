@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://dau13b1rjwu1t"]
 
-[ext_resource type="Script" path="res://addons/sdg-print/dumps/crash_report.gd" id="1_hv0qm"]
+[ext_resource type="Script" uid="uid://cby6m3arhcq73" path="res://addons/sdg-print/dumps/crash_report.gd" id="1_hv0qm"]
 [ext_resource type="PackedScene" uid="uid://bgqpnmnejfmrv" path="res://addons/sdg-print/dumps/dump_viewer.tscn" id="2_wuac6"]
 
 [node name="CrashReport" type="Control"]
