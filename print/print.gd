@@ -108,28 +108,21 @@ func _init():
 
 # Connect to the Console (if it is present)
 func _ready():
-	if !has_node("/root/Console"):
-		return
-	var console = get_node("/root/Console")
-	_global_logger._console = console
-	console.add_command("silence_all_prints", self, "silence_all")\
-			.set_description("Disables all printing to this console and the Output window or external console")\
-			.register()
-	console.add_command("silence_non_error_prints", self, "silence_non_error_printing")\
-			.set_description("Disables all non-error printing.")\
-			.register()
-	console.add_command("dump_all_loggers", self, "_dump_loggers")\
-			.set_description("Dumps all of the prints stored in all of the loggers. Dumps to file, but also copies to the clipboard.")\
-			.register()
-	console.add_command("list_loggers", self, "list_loggers")\
-			.set_description("Prints the names of all of the loggers to the console.")\
-			.register()
-	console.add_command("clear_all_dumps", self, "_delete_dumps")\
-			.set_description("Deletes all of the dump files in user://dumps.")\
-			.register()
-	console.add_command("push_test_error", self, "_test_error")\
-			.set_description("Pushes an error to the console and dump file. Logs at each level first, ending with the error.")\
-			.register()
+	if has_node("/root/Console"):
+		var console = get_node("/root/Console")
+		_global_logger._console = console
+		console.add_command("Print.silence_all", silence_all, 0, 0, 
+				"Disables all printing to this console and the Output window or external console")
+		console.add_command("Print.silence_non_error_logs", silence_non_error_printing, 0, 0, 
+				"Disables all non-error printing.")
+		console.add_command("Print.dump_all_loggers", _dump_loggers, 0, 0, 
+				"Dumps all of the prints stored in all of the loggers. Dumps to file, but also copies to the clipboard.")
+		console.add_command("Print.list_loggers", list_loggers, 0, 0, 
+				"Prints the names of all of the loggers to the console.")
+		console.add_command("Print.clear_all_dumps", _delete_dumps, 0, 0, 
+				"Deletes all of the dump files in user://dumps.")
+		console.add_command("Print.push_test_error", _test_error, 0, 0, 
+				"Pushes an error to the console and dump file. Logs at each level first, ending with the error.")
 
 
 # Dump loggers when we detect that the application is exiting.
@@ -307,7 +300,7 @@ func list_loggers() -> Array:
 
 # Function for the Console to grab onto. Calls [Logger.error_dump] on EVERY logger in the project.
 func _dump_loggers():
-	var log_string = flush_logs("User initiated dump from console.", ErrorDump.DumpReason.MANUAL)
+	flush_logs("User initiated dump from console.", ErrorDump.DumpReason.MANUAL)
 
 
 # Function for the Console to grab onto. Deletes all dumps from the filesystem.

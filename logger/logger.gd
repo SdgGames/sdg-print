@@ -270,4 +270,4 @@ func _exit_tree():
 
 func _print_console(message: String):
 	if _console:
-		_console.Text.append_text(message + "\n")
+		_console.print_line(message)
