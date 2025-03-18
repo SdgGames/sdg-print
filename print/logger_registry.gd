@@ -15,35 +15,31 @@ const REQUIRE_REGISTRY_SETTING = PrintSettings.SETTINGS_PATH + "require_registry
 ## Configuration for the Print logger (required)
 @export var print_logger: LoggerConfig:
 	get:
-		if _print_logger == null:
-			_print_logger = LoggerConfig.new("Print", Logger.LogLevel.INFO, Logger.LogLevel.VERBOSE)
+		if print_logger == null:
+			print_logger = LoggerConfig.new("Print", Logger.LogLevel.INFO, Logger.LogLevel.VERBOSE)
 			notify_property_list_changed()
-		return _print_logger
+		return print_logger
 	set(value):
 		if value == null:
-			_print_logger = LoggerConfig.new("Print", Logger.LogLevel.INFO, Logger.LogLevel.VERBOSE)
+			print_logger = LoggerConfig.new("Print", Logger.LogLevel.INFO, Logger.LogLevel.VERBOSE)
 		else:
-			_print_logger = value
+			print_logger = value
 
 ## Configuration for the Global logger (required)
 @export var global_logger: LoggerConfig:
 	get:
-		if _global_logger == null:
-			_global_logger = LoggerConfig.new("Global", Logger.LogLevel.VERBOSE, Logger.LogLevel.VERBOSE)
+		if global_logger == null:
+			global_logger = LoggerConfig.new("Global", Logger.LogLevel.VERBOSE, Logger.LogLevel.VERBOSE)
 			notify_property_list_changed()
-		return _global_logger
+		return global_logger
 	set(value):
 		if value == null:
-			_global_logger = LoggerConfig.new("Global", Logger.LogLevel.VERBOSE, Logger.LogLevel.VERBOSE)
+			global_logger = LoggerConfig.new("Global", Logger.LogLevel.VERBOSE, Logger.LogLevel.VERBOSE)
 		else:
-			_global_logger = value
+			global_logger = value
 
 ## Array of additional logger configurations
 @export var loggers: Array[LoggerConfig] = []
-
-# Internal backing fields for the properties
-var _print_logger: LoggerConfig
-var _global_logger: LoggerConfig
 
 
 ## When adding loggers to a new registry, apply sensible default values
