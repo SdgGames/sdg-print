@@ -75,7 +75,6 @@ class_name PrintSettings extends Resource
 @export var dump_header_color := Color.GOLD
 
 
-
 # ProjectSettings paths and default values
 const SETTINGS_PATH = "debug/logging/"
 const DEFAULT_SETTINGS = {
@@ -165,6 +164,7 @@ const DEFAULT_SETTINGS = {
 ## Registers all logging-related settings in ProjectSettings if they don't exist.
 ## Called automatically by the Print singleton during initialization.
 static func _register_settings() -> void:
+	LoggerRegistry.register_project_settings()
 	for setting_name in DEFAULT_SETTINGS:
 		var full_path = SETTINGS_PATH + setting_name
 		var setting_info = DEFAULT_SETTINGS[setting_name]

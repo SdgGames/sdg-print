@@ -48,7 +48,7 @@ func _init(level: Logger.LogLevel, module: StringName, message: String, current_
 func format(settings: PrintSettings) -> String:
 	var formatted_message := ""
 	var module_width = settings.max_module_width
-	if !Engine.is_editor_hint():
+	if !Engine.is_editor_hint() and Print:
 		module_width = Print._current_module_width
 	
 	# Add timestamp if enabled

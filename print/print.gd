@@ -57,11 +57,6 @@ enum {
 	FRAME_ONLY = 6, ## Internal value for storing frames in dump files. Do not use.
 }
 
-## The default [enum Logger.LogLevel] for printing from the "Print" logger.
-const self_print_level := Logger.LogLevel.WARNING
-## The default [enum Logger.LogLevel] for archiving from the "Print" logger.
-const self_archive_level := Logger.LogLevel.VERBOSE
-
 ## Global print settings used as defaults for all loggers without custom settings.
 @export var settings: PrintSettings
 
@@ -93,17 +88,34 @@ func _init():
 	# Clean up extra files from previous sessions.
 	ErrorDump.cleanup_old_dumps(settings.max_log_files)
 	
-	# Create the print logger with default settings
+	var registry = LoggerRegistry.load_from_project_settings()
+	
+	# Initialize Print logger from registry
 	_print_logger = Logger.new()._second_init(
 		"Print", 
-		self_print_level,
-		self_archive_level,
+		registry.print_logger.print_level,
+		registry.print_logger.archive_level,
 		Logger.LogType.SINGLETON,
 		settings
 	)
 	add_child(_print_logger)
 	_print_logger.process_priority = process_priority + 1
-	_global_logger = create_logger("Global", VERBOSE, VERBOSE)
+	
+	# Initialize Global logger from registry
+	_global_logger = create_logger(
+		"Global", 
+		registry.global_logger.print_level, 
+		registry.global_logger.archive_level
+	)
+	
+	# Create all additional loggers from registry
+	for logger_config in registry.loggers:
+		_print_logger.verbose("Creating logger from registry: %s" % logger_config.name)
+		create_logger(
+			logger_config.name, 
+			logger_config.print_level, 
+			logger_config.archive_level
+		)
 
 
 # Connect to the Console (if it is present)
@@ -142,7 +154,8 @@ func _notification(what: int) -> void:
 func create_logger(identifier, print_level, archive_level, custom_settings: PrintSettings = null) -> Logger:
 	var id = _get_id(identifier)
 	if id in _logs:
-		_print_logger.debug("Print.create_logger found existing logger %s." % id)
+		_print_logger.info('Print.create_logger found existing logger "%s". %s' %
+				[id, "If you are trying to instance a new logger, then this is an error."])
 		var logger: Logger = _logs[id]
 		logger.print_level = print_level
 		logger.archive_level = archive_level

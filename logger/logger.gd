@@ -45,6 +45,8 @@ enum LogType {
 ## fail if there are multiple loggers with the same id.
 ## [br][br]
 ## If left blank, will be set automatically based on the parent's path in the scene tree.
+## If you are attaching loggers to individual object instances, then leave this blank to avoid
+## a name collision!
 @export var id := ""
 
 ## What [enum LogLevel] the module will print at. Messages more verbose than this won't be output.
