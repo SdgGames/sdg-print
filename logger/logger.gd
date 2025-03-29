@@ -50,15 +50,16 @@ enum LogType {
 @export var id := ""
 
 ## What [enum LogLevel] the module will print at. Messages more verbose than this won't be output.
-@export var print_level : LogLevel = LogLevel.SILENT
+@export var print_level : LogLevel = LogLevel.VERBOSE
 
 ## What [enum LogLevel] the module will archive. Messages more verbose than this won't appear in error dumps.
-@export var archive_level : LogLevel = LogLevel.DEBUG
+@export var archive_level : LogLevel = LogLevel.VERBOSE
 
 ## Settings controlling the format and appearance of log messages.
 @export var settings: PrintSettings
 
 # Internal variables
+var _initialized := false
 var _log_type : LogType = LogType.OBJECT
 var _console = null
 
@@ -72,7 +73,9 @@ var _has_frame_changes := false
 # Register with the Print singleton when ready.
 # If this logger is a child of an existing node, will update the ID accordingly.
 func _ready():
-	if id == "":
+	if !_initialized:
+		_second_init()
+	if id == &"":
 		id = str(get_parent().get_path()).replace("/root/", "")
 	Print._register_logger(self)
 	start()
@@ -83,11 +86,13 @@ func _ready():
 func _second_init(id := &"", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE,
 		log_type := LogType.OBJECT, custom_settings: PrintSettings = null) -> Logger:
 	self.id = id
-	self.name = str(id)
+	if log_type == LogType.SINGLETON:
+		self.name = str(id) 
 	self.print_level = print_level
 	self.archive_level = archive_level
 	self._log_type = log_type
 	self.settings = custom_settings if custom_settings else Print.settings
+	self._initialized = true
 	
 	# Initialize our history buffers
 	_log_history = RingBuffer.new(settings.max_log_entries)
@@ -97,8 +102,10 @@ func _second_init(id := &"", print_level := LogLevel.VERBOSE, archive_level := L
 
 ## Clears the message and frame history for this logger instance.
 func start():
-	_log_history.clear()
-	_frame_history.clear()
+	if _log_history:
+		_log_history.clear()
+	if _frame_history:
+		_frame_history.clear()
 	_current_frame = null
 	_has_frame_changes = false
 
