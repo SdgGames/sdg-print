@@ -8,8 +8,8 @@ class_name LogEntry extends RefCounted
 ## The timestamp in microseconds when this log entry was created
 var timestamp: int  # Changed from float to int for microseconds
 
-## The logging level for this entry. See [enum Log.LogLevel]
-var level: Log.LogLevel
+## The logging level for this entry. See [enum Log.Level]
+var level: Log.Level
 
 ## The module/logger name that created this entry
 var module: StringName
@@ -27,7 +27,7 @@ var current_frame: FrameLog = null
 ## Creates a new LogEntry that wraps frame data
 static func wrap_frame(frame: FrameLog, module: StringName) -> LogEntry:
 	var entry = LogEntry.new(
-		Log.LogLevel.FRAME_ONLY,
+		Log.Level.FRAME_ONLY,
 		module,
 		"", # Minimize file size, we can generate a message when building from a dictionary later.
 		frame
@@ -35,7 +35,7 @@ static func wrap_frame(frame: FrameLog, module: StringName) -> LogEntry:
 	return entry
 
 
-func _init(level: Log.LogLevel, module: StringName, message: String, current_frame: FrameLog):
+func _init(level: Log.Level, module: StringName, message: String, current_frame: FrameLog):
 	self.timestamp = Time.get_ticks_usec()  # Use microsecond timestamp
 	self.level = level
 	self.module = module
@@ -80,7 +80,7 @@ func format(settings: PrintSettings) -> String:
 	
 	# Add log level if enabled
 	if settings.show_log_levels:
-		var level_name = Log.LogLevel.keys()[level]
+		var level_name = Log.Level.keys()[level]
 		formatted_message += "[color=#%s]%-*s[/color] " % [
 			settings.get_level_color(level).to_html(false),
 			8,
@@ -112,7 +112,7 @@ func get_time_string() -> String:
 func to_dict() -> Dictionary:
 	return {
 		"timestamp": timestamp,  # Store raw microseconds
-		"level": Log.LogLevel.keys()[level],
+		"level": Log.Level.keys()[level],
 		"message": message,
 		"frame_number": frame_number,
 		"current_frame": null if current_frame == null else current_frame.to_dict()
@@ -121,7 +121,7 @@ func to_dict() -> Dictionary:
 
 ## Creates a LogEntry from a dictionary
 static func from_dict(data: Dictionary, module: StringName) -> LogEntry:
-	var level_idx = Log.LogLevel.keys().find(data.level)
+	var level_idx = Log.Level.keys().find(data.level)
 	var entry = LogEntry.new(level_idx, module, data.message, null)
 	entry.timestamp = data.timestamp  # Load raw microseconds
 	entry.frame_number = data.frame_number

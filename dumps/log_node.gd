@@ -9,9 +9,9 @@ enum NodeType {
 var type: NodeType
 var entry: LogEntry
 var children: Array[LogNode] = []
-var effective_fold_level: Log.LogLevel  # The level at which this node effectively folds
+var effective_fold_level: Log.Level  # The level at which this node effectively folds
 
-var _fold_level: Log.LogLevel # The actual level of this node (equal to entry.level when entry exists)
+var _fold_level: Log.Level # The actual level of this node (equal to entry.level when entry exists)
 
 
 func _init(type: NodeType, entry: LogEntry):
@@ -21,9 +21,9 @@ func _init(type: NodeType, entry: LogEntry):
 	# Set initial effective fold level based on type
 	match type:
 		NodeType.ROOT:
-			self._fold_level = Log.LogLevel.SILENT
+			self._fold_level = Log.Level.SILENT
 		_:
-			self._fold_level = Log.LogLevel.FRAME_ONLY if entry == null else entry.level
+			self._fold_level = Log.Level.FRAME_ONLY if entry == null else entry.level
 	self.effective_fold_level = _fold_level
 
 
@@ -31,7 +31,7 @@ func add_child(child: LogNode) -> void:
 	children.append(child)
 
 
-func _create_fold_point(level: Log.LogLevel) -> LogNode:
+func _create_fold_point(level: Log.Level) -> LogNode:
 	var fold_entry = LogEntry.new(
 		level,
 		&"FOLD_POINT",
@@ -41,7 +41,7 @@ func _create_fold_point(level: Log.LogLevel) -> LogNode:
 	return LogNode.new(NodeType.FOLD_POINT, fold_entry)
 
 
-func _look_ahead_for_fold_point(entries: Array[LogEntry]) -> Log.LogLevel:
+func _look_ahead_for_fold_point(entries: Array[LogEntry]) -> Log.Level:
 	var highest_level = entries[0].level  # Start with first child's level
 	var current_level = _fold_level
 	
@@ -73,7 +73,7 @@ func consume_entries(entries: Array[LogEntry]) -> void:
 					continue # Continue processing remaining entries
 				else:
 					# Set our effective fold level to one level above next entry
-					effective_fold_level = Log.LogLevel.values()[next_entry.level - 1]
+					effective_fold_level = Log.Level.values()[next_entry.level - 1]
 			
 			var child = LogNode.new(NodeType.ENTRY, next_entry)
 			add_child(child)

@@ -46,8 +46,8 @@ class_name SDG_Print extends Node
 
 enum {
 	SILENT = 0,
-	## [br]Mirrors the values of [enum Log.LogLevel]. Functions like [method Print.from] can take 
-	## this as an argument instead of taking [enum Log.LogLevel]. For example, 
+	## [br]Mirrors the values of [enum Log.Level]. Functions like [method Print.from] can take 
+	## this as an argument instead of taking [enum Log.Level]. For example, 
 	## [code]Print.from("Player_Submodule_Logger", "Hello World!", Print.INFO)[/code]
 	ERROR = 1,
 	WARNING = 2,
@@ -170,8 +170,8 @@ func create_logger(identifier, print_level, archive_level, custom_settings: Prin
 		var logger_settings = custom_settings if custom_settings else settings
 		var logger = Log.new()._second_init(
 			id,
-			Log.LogLevel.values()[print_level],
-			Log.LogLevel.values()[archive_level],
+			Log.Level.values()[print_level],
+			Log.Level.values()[archive_level],
 			_get_type(identifier),
 			logger_settings
 		)
@@ -200,7 +200,7 @@ func get_logger(identifier, get_or_create := false) -> Log:
 ## Prints to the selected [Log] instance at the specified [param level].
 ## If no level is indicated, prints at DEBUG level.
 ## Will throw an error if no [Log] matches [param identifier]
-func from(identifier, message: String, level = Log.LogLevel.DEBUG):
+func from(identifier, message: String, level = Log.Level.DEBUG):
 	var logger_id = _get_id(identifier)
 	if _logs.has(logger_id):
 		_logs[logger_id].print_at_level(message, level)
@@ -286,14 +286,14 @@ func verbose(message: String):
 ## [member error_count] in the Print singleton.
 func silence_all():
 	for id in _logs.keys():
-		_logs[id].print_level = Log.LogLevel.SILENT
-		_logs[id].archive_level = Log.LogLevel.SILENT
+		_logs[id].print_level = Log.Level.SILENT
+		_logs[id].archive_level = Log.Level.SILENT
 
 
 ## Sets all [Loggers] to only print errors.
 func silence_non_error_printing():
 	for id in _logs.keys():
-		_logs[id].print_level = Log.LogLevel.ERROR
+		_logs[id].print_level = Log.Level.ERROR
 
 
 ## Resets warning and error counts to zero.
@@ -324,7 +324,7 @@ func _delete_dumps():
 # Function for the Console to grab onto. Prints a log at each level, ending with an Error.
 func _test_error():
 	var levels = [_global_logger.print_level, _global_logger.archive_level]
-	_global_logger.print_level = Log.LogLevel.VERBOSE
+	_global_logger.print_level = Log.Level.VERBOSE
 	
 	var l = Print.get_logger("Player")
 	_global_logger.start_frame("Testing frame data output.")

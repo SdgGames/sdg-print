@@ -222,17 +222,17 @@ func load_from_project_settings() -> void:
 ## Gets the appropriate color for a specific log level.
 ## [br][br]
 ## If an invalid level is provided, returns Color.WHITE as a fallback.
-func get_level_color(level: Log.LogLevel) -> Color:
+func get_level_color(level: Log.Level) -> Color:
 	match level:
-		Log.LogLevel.ERROR:
+		Log.Level.ERROR:
 			return error_color
-		Log.LogLevel.WARNING:
+		Log.Level.WARNING:
 			return warning_color
-		Log.LogLevel.INFO:
+		Log.Level.INFO:
 			return info_color
-		Log.LogLevel.DEBUG:
+		Log.Level.DEBUG:
 			return debug_color
-		Log.LogLevel.VERBOSE:
+		Log.Level.VERBOSE:
 			return verbose_color
 		_:
 			return Color.WHITE  # Default fallback

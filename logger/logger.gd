@@ -6,7 +6,7 @@ class_name Log extends Node
 ## Can print to the standard output ([code]print()[/code]) and to the in-game console (if present).
 ## The output verbosity can be changed by setting [member print_level] or [member archive_level].
 ## [br][br]
-## If a module's [member print_level] is set to [enum LogLevel.SILENT] nothing will be printed to
+## If a module's [member print_level] is set to [enum Level.SILENT] nothing will be printed to
 ## the console, but messages will still be saved to a buffer. If an error is encountered
 ## (the call might look like: [code]my_logger.error("Something went wrong")[/code]),
 ## the entire saved buffer will be printed. You can call [method start] to clear the buffer if you
@@ -24,7 +24,7 @@ class_name Log extends Node
 ## If the print level is higher (more verbose) than [member print_level], then nothing will be
 ## output. Similarly, if the print level is higher than [member archive_level], the print will be
 ## lost, and will not appear in the output dump for [method error] calls.
-enum LogLevel {
+enum Level {
 	SILENT = 0, ## Mutes all prints. Not intended for use in [method print_at_level] calls.
 	ERROR = 1, ## Prints an error using [code]push_error[/code].
 	WARNING = 2, ## Prints a warning using [code]push_warning[/code].
@@ -49,11 +49,11 @@ enum LogType {
 ## a name collision!
 @export var id := ""
 
-## What [enum LogLevel] the module will print at. Messages more verbose than this won't be output.
-@export var print_level : LogLevel = LogLevel.VERBOSE
+## What [enum Level] the module will print at. Messages more verbose than this won't be output.
+@export var print_level : Log.Level = Log.Level.VERBOSE
 
-## What [enum LogLevel] the module will archive. Messages more verbose than this won't appear in error dumps.
-@export var archive_level : LogLevel = LogLevel.VERBOSE
+## What [enum Level] the module will archive. Messages more verbose than this won't appear in error dumps.
+@export var archive_level : Log.Level = Log.Level.VERBOSE
 
 ## Settings controlling the format and appearance of log messages.
 @export var settings: PrintSettings
@@ -83,7 +83,7 @@ func _ready():
 
 # Set up everything that we can't do in an _init call (because Godot calls _init on nodes in the scene tree).
 # Returns self so you can chain Log.new.init(...)
-func _second_init(id := &"", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE,
+func _second_init(id := &"", print_level := Log.Level.VERBOSE, archive_level := Log.Level.VERBOSE,
 		log_type := LogType.OBJECT, custom_settings: PrintSettings = null) -> Log:
 	self.id = id
 	if log_type == LogType.SINGLETON:
@@ -123,9 +123,9 @@ func assert_that(is_true, message := ""):
 ## If you just want to print the current error, set [param dump_error] to [code]false[/code].
 func error(message: String, dump_error := true):
 	Print.error_count += 1
-	var entry = _log(LogLevel.ERROR, message)
+	var entry = _log(Log.Level.ERROR, message)
 	
-	if print_level >= LogLevel.ERROR:
+	if print_level >= Log.Level.ERROR:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		print_rich(formatted)
@@ -138,9 +138,9 @@ func error(message: String, dump_error := true):
 ## create an error dump. If you want to dump, set [param dump_warning] to true.
 func warning(message: String, dump_warning := false):
 	Print.warning_count += 1
-	var entry = _log(LogLevel.WARNING, message)
+	var entry = _log(Log.Level.WARNING, message)
 	
-	if print_level >= LogLevel.WARNING:
+	if print_level >= Log.Level.WARNING:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		print_rich(formatted)
@@ -151,9 +151,9 @@ func warning(message: String, dump_warning := false):
 
 ## Prints an INFO message to screen and console.
 func info(message: String):
-	var entry = _log(LogLevel.INFO, message)
+	var entry = _log(Log.Level.INFO, message)
 	
-	if print_level >= LogLevel.INFO:
+	if print_level >= Log.Level.INFO:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		print_rich(formatted)
@@ -161,9 +161,9 @@ func info(message: String):
 
 ## Prints a DEBUG message to screen and console.
 func debug(message: String):
-	var entry = _log(LogLevel.DEBUG, message)
+	var entry = _log(Log.Level.DEBUG, message)
 	
-	if print_level >= LogLevel.DEBUG:
+	if print_level >= Log.Level.DEBUG:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		print_rich(formatted)
@@ -171,9 +171,9 @@ func debug(message: String):
 
 ## Prints a VERBOSE message to screen and console.
 func verbose(message: String):
-	var entry = _log(LogLevel.VERBOSE, message)
+	var entry = _log(Log.Level.VERBOSE, message)
 	
-	if print_level >= LogLevel.VERBOSE:
+	if print_level >= Log.Level.VERBOSE:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		print_rich(formatted)
@@ -240,17 +240,17 @@ func get_frame(prepend_title := false) -> String:
 ## Prints a message at a specific level. Equivalent to calling [method error], [method info], etc.
 func print_at_level(message: String, level):
 	match level:
-		LogLevel.ERROR:
+		Log.Level.ERROR:
 			error(message)
-		LogLevel.WARNING:
+		Log.Level.WARNING:
 			warning(message)
-		LogLevel.INFO:
+		Log.Level.INFO:
 			info(message)
-		LogLevel.DEBUG:
+		Log.Level.DEBUG:
 			debug(message)
-		LogLevel.VERBOSE:
+		Log.Level.VERBOSE:
 			verbose(message)
-		LogLevel.SILENT:
+		Log.Level.SILENT:
 			error("Attempted to print at ''SILENT'' logging level.")
 		_:
 			error("Attempted to print at an invalid logging level.")
@@ -266,7 +266,7 @@ func to_dict() -> Dictionary:
 
 
 # Helper function to create and store a log entry
-func _log(level: LogLevel, message: String) -> LogEntry:
+func _log(level: Log.Level, message: String) -> LogEntry:
 	var entry = LogEntry.new(level, id, message, _current_frame)
 	if archive_level >= level:
 		_log_history.push(entry)
