@@ -2,10 +2,10 @@ class_name FrameLog extends RefCounted
 ## Stores log information for a single frame of execution.
 ##
 ## FrameLog maintains the title and details strings for a single frame of
-## execution. This is used by the [Logger] class to track detailed state
+## execution. This is used by the [Log] class to track detailed state
 ## information on a frame-by-frame basis.
 ## [br][br]
-## This class is used internally by the [Logger] class and shouldn't be
+## This class is used internally by the [Log] class and shouldn't be
 ## created manually.
 
 ## The title string for this frame

@@ -56,31 +56,31 @@ func _on_collate_button_toggled(toggled_on: bool) -> void:
 
 
 func _on_collapse_pressed() -> void:
-	tree.collapse_level = Logger.LogLevel.SILENT
+	tree.collapse_level = Log.LogLevel.SILENT
 
 
 func _on_error_pressed() -> void:
-	tree.collapse_level = Logger.LogLevel.ERROR
+	tree.collapse_level = Log.LogLevel.ERROR
 
 
 func _on_warning_pressed() -> void:
-	tree.collapse_level = Logger.LogLevel.WARNING
+	tree.collapse_level = Log.LogLevel.WARNING
 
 
 func _on_info_pressed() -> void:
-	tree.collapse_level = Logger.LogLevel.INFO
+	tree.collapse_level = Log.LogLevel.INFO
 
 
 func _on_debug_pressed() -> void:
-	tree.collapse_level = Logger.LogLevel.DEBUG
+	tree.collapse_level = Log.LogLevel.DEBUG
 
 
 func _on_verbose_pressed() -> void:
-	tree.collapse_level = Logger.LogLevel.VERBOSE
+	tree.collapse_level = Log.LogLevel.VERBOSE
 
 
 func _on_expand_pressed() -> void:
-	if tree.collapse_level == Logger.LogLevel.FRAME_ONLY:
-		tree.collapse_level = Logger.LogLevel.FRAME_ONLY + 1
+	if tree.collapse_level == Log.LogLevel.FRAME_ONLY:
+		tree.collapse_level = Log.LogLevel.FRAME_ONLY + 1
 	else:
-		tree.collapse_level = Logger.LogLevel.FRAME_ONLY
+		tree.collapse_level = Log.LogLevel.FRAME_ONLY

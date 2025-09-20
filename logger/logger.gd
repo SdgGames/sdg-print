@@ -1,5 +1,5 @@
 @icon("res://addons/sdg-print/logger/logger_icon.svg")
-class_name Logger extends Node
+class_name Log extends Node
 ## More advanced print class that logs events, warnings, and errors for a particular subsystem.
 ##
 ## A logging helper for a module or individual object.
@@ -79,9 +79,9 @@ func _ready():
 
 
 # Set up everything that we can't do in an _init call (because Godot calls _init on nodes in the scene tree).
-# Returns self so you can chain Logger.new.init(...)
+# Returns self so you can chain Log.new.init(...)
 func _second_init(id := &"", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE,
-		log_type := LogType.OBJECT, custom_settings: PrintSettings = null) -> Logger:
+		log_type := LogType.OBJECT, custom_settings: PrintSettings = null) -> Log:
 	self.id = id
 	self.name = str(id)
 	self.print_level = print_level
@@ -176,7 +176,7 @@ func verbose(message: String):
 ## This should be called at the start of whatever process you're tracking
 ## (usually at the start of a frame, hence the name).
 ## Any title you give will be displayed at the start of the frame. If no title
-## is given, the Logger ID will be used instead.
+## is given, the Log ID will be used instead.
 func start_frame(title := ""):
 	if title == "":
 		_current_frame = FrameLog.new(id)

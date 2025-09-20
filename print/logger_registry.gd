@@ -16,12 +16,12 @@ const REQUIRE_REGISTRY_SETTING = PrintSettings.SETTINGS_PATH + "require_registry
 @export var print_logger: LoggerConfig:
 	get:
 		if print_logger == null:
-			print_logger = LoggerConfig.new("Print", Logger.LogLevel.INFO, Logger.LogLevel.VERBOSE)
+			print_logger = LoggerConfig.new("Print", Log.LogLevel.INFO, Log.LogLevel.VERBOSE)
 			notify_property_list_changed()
 		return print_logger
 	set(value):
 		if value == null:
-			print_logger = LoggerConfig.new("Print", Logger.LogLevel.INFO, Logger.LogLevel.VERBOSE)
+			print_logger = LoggerConfig.new("Print", Log.LogLevel.INFO, Log.LogLevel.VERBOSE)
 		else:
 			print_logger = value
 
@@ -29,12 +29,12 @@ const REQUIRE_REGISTRY_SETTING = PrintSettings.SETTINGS_PATH + "require_registry
 @export var global_logger: LoggerConfig:
 	get:
 		if global_logger == null:
-			global_logger = LoggerConfig.new("Global", Logger.LogLevel.VERBOSE, Logger.LogLevel.VERBOSE)
+			global_logger = LoggerConfig.new("Global", Log.LogLevel.VERBOSE, Log.LogLevel.VERBOSE)
 			notify_property_list_changed()
 		return global_logger
 	set(value):
 		if value == null:
-			global_logger = LoggerConfig.new("Global", Logger.LogLevel.VERBOSE, Logger.LogLevel.VERBOSE)
+			global_logger = LoggerConfig.new("Global", Log.LogLevel.VERBOSE, Log.LogLevel.VERBOSE)
 		else:
 			global_logger = value
 
@@ -45,7 +45,7 @@ const REQUIRE_REGISTRY_SETTING = PrintSettings.SETTINGS_PATH + "require_registry
 ## When adding loggers to a new registry, apply sensible default values
 func _init(create_game_logger := true) -> void:
 	if create_game_logger:
-		loggers.append(LoggerConfig.new("Game", Logger.LogLevel.VERBOSE, Logger.LogLevel.VERBOSE))
+		loggers.append(LoggerConfig.new("Game", Log.LogLevel.VERBOSE, Log.LogLevel.VERBOSE))
 
 
 ## Register the logger registry path setting in Project Settings.
@@ -102,5 +102,5 @@ static func load_from_project_settings() -> LoggerRegistry:
 			assert(false, "Resource at " + registry_path + " is not a LoggerRegistry")
 			return LoggerRegistry.new()
 	else:
-		assert(false, "Logger registry not found at path: " + registry_path)
+		assert(false, "Log registry not found at path: " + registry_path)
 		return LoggerRegistry.new()

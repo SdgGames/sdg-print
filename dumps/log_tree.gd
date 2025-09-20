@@ -11,7 +11,7 @@ enum Columns {
 }
 
 @export var collated := true
-@export var collapse_level: Logger.LogLevel = Logger.LogLevel.INFO:
+@export var collapse_level: Log.LogLevel = Log.LogLevel.INFO:
 	set(value):
 		collapse_level = value
 		refresh_tree()
@@ -125,7 +125,7 @@ func _setup_entry_item(item: TreeItem, entry: LogEntry) -> void:
 	item.set_text(Columns.TIMESTAMP, format_time(entry.timestamp))
 	item.set_text(Columns.MODULE, entry.module)
 	item.set_text(Columns.MESSAGE, entry.message)
-	item.set_text(Columns.LEVEL, Logger.LogLevel.keys()[entry.level])
+	item.set_text(Columns.LEVEL, Log.LogLevel.keys()[entry.level])
 	
 	# Color code based on log level
 	var level_color = get_level_color(entry.level)
@@ -142,7 +142,7 @@ func _setup_entry_item(item: TreeItem, entry: LogEntry) -> void:
 	# Set up frame data if present
 	if entry.current_frame != null:
 		# This entry is only frame data. Put the title inside the fold.
-		if entry.level == Logger.LogLevel.FRAME_ONLY:
+		if entry.level == Log.LogLevel.FRAME_ONLY:
 			item.set_text(Columns.SYMBOL, "⊡")
 			item.set_text(Columns.TIMESTAMP, "")
 			_setup_frame_data(item, entry)
@@ -159,7 +159,7 @@ func _setup_entry_item(item: TreeItem, entry: LogEntry) -> void:
 func _setup_frame_data(parent: TreeItem, entry: LogEntry):
 	parent.set_text(Columns.MESSAGE, entry.current_frame.title)
 	parent.set_custom_color(Columns.MESSAGE, print_settings.frame_data_color)
-	parent.collapsed = Logger.LogLevel.FRAME_ONLY >= collapse_level
+	parent.collapsed = Log.LogLevel.FRAME_ONLY >= collapse_level
 	var frame_item = create_item(parent)
 	frame_item.set_text(Columns.MESSAGE, entry.current_frame.format(false))
 	frame_item.set_custom_color(Columns.MESSAGE, print_settings.frame_data_color)
@@ -199,31 +199,31 @@ func format_time(usec: int) -> String:
 	]
 
 
-func get_level_color(level: Logger.LogLevel) -> Color:
+func get_level_color(level: Log.LogLevel) -> Color:
 	match level:
-		Logger.LogLevel.ERROR:
+		Log.LogLevel.ERROR:
 			return print_settings.error_color
-		Logger.LogLevel.WARNING:
+		Log.LogLevel.WARNING:
 			return print_settings.warning_color
-		Logger.LogLevel.INFO:
+		Log.LogLevel.INFO:
 			return print_settings.info_color
-		Logger.LogLevel.DEBUG:
+		Log.LogLevel.DEBUG:
 			return print_settings.debug_color
-		Logger.LogLevel.VERBOSE:
+		Log.LogLevel.VERBOSE:
 			return print_settings.verbose_color
-		Logger.LogLevel.FRAME_ONLY:
+		Log.LogLevel.FRAME_ONLY:
 			return print_settings.frame_data_color
 		_:
 			return print_settings.default_message_color
 
 
-func get_message_color(level: Logger.LogLevel) -> Color:
+func get_message_color(level: Log.LogLevel) -> Color:
 	match level:
-		Logger.LogLevel.ERROR:
+		Log.LogLevel.ERROR:
 			return print_settings.error_color
-		Logger.LogLevel.WARNING:
+		Log.LogLevel.WARNING:
 			return print_settings.warning_color
-		Logger.LogLevel.FRAME_ONLY:
+		Log.LogLevel.FRAME_ONLY:
 			return print_settings.frame_data_color
 		_:
 			return print_settings.default_message_color

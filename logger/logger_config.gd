@@ -8,7 +8,7 @@ class_name LoggerConfig extends Resource
 ## to automatically initialize loggers at startup.
 
 ## The name of the logger. Must be unique across all loggers.
-@export var name := "Logger"
+@export var name := "Log"
 
 ## The print (console) level for the logger.
 ## Controls what messages appear in the Output panel during execution.
@@ -22,7 +22,7 @@ var archive_level: int = 5
 
 
 ## Create a new LoggerConfig with default values.
-func _init(_name := "Logger", _print := 5, _archive := 5) -> void:
+func _init(_name := "Log", _print := 5, _archive := 5) -> void:
 	name = _name
 	print_level = _print
 	archive_level = _archive

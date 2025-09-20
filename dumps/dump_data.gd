@@ -19,7 +19,7 @@ class LoggerData extends RefCounted:
 	
 	
 	## Get all entries.
-	func get_entries(min_level := Logger.LogLevel.FRAME_ONLY) -> Array[LogEntry]:
+	func get_entries(min_level := Log.LogLevel.FRAME_ONLY) -> Array[LogEntry]:
 		var entries: Array[LogEntry] = []
 		
 		# Add log entries that meet the minimum level
@@ -82,7 +82,7 @@ func load_from_dict(data: Dictionary) -> bool:
 func _build_view_trees() -> void:
 	# Create dump header entry
 	var dump_header = LogEntry.new(
-		Logger.LogLevel.SILENT,
+		Log.LogLevel.SILENT,
 		&"DUMP",
 		formatted_header,
 		null
@@ -121,7 +121,7 @@ func _build_view_trees() -> void:
 		# Create and add module node
 		var module_node = LogNode.new(
 			LogNode.NodeType.ROOT,
-			LogEntry.new(Logger.LogLevel.SILENT, module_id, "", null)
+			LogEntry.new(Log.LogLevel.SILENT, module_id, "", null)
 		)
 		module_root.add_child(module_node)
 		
@@ -132,7 +132,7 @@ func _build_view_trees() -> void:
 	if empty_modules != "":
 		module_root.add_child(LogNode.new(
 			LogNode.NodeType.ENTRY,
-			LogEntry.new(Logger.LogLevel.INFO, "", "Modules with no logs to display:\n" + empty_modules, null)
+			LogEntry.new(Log.LogLevel.INFO, "", "Modules with no logs to display:\n" + empty_modules, null)
 		))
 
 
