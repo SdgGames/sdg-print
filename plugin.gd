@@ -18,10 +18,10 @@ const PluginName := "Print"
 const PluginPath := "res://addons/sdg-print/print/print.tscn"
 
 ## Path to the editor tab scene for viewing dumps
-const PRINT_EDITOR_TAB = preload("res://addons/sdg-print/print_panel/print_editor_tab.tscn")
+const PRINT_EDITOR_TAB = preload("uid://cvb0f4ora2d6b") # print_editor_tab.tscn
 
 ## Icon for the Print tab in the editor
-const PRINT_TAB_ICON = preload("res://addons/sdg-print/print_panel/print_tab_icon.svg")
+const PRINT_TAB_ICON = preload("uid://bfyn3dcyb6xre") # print_tab_icon.svg
 
 ## Instance of the editor tab for viewing dumps
 var editor_tab: Control
