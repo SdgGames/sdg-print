@@ -5,5 +5,7 @@ extends Control
 
 
 func load_latest_dump(path: String):
-	active_dump.load_dump_file(path)
-	DirAccess.remove_absolute(path)
+	await active_dump.load_dump_file(path)
+	print("load_latest_dump - deleting: ", path)
+	# todo re-enable:
+	# DirAccess.remove_absolute(path)

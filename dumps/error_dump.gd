@@ -18,20 +18,21 @@ enum DumpReason {
 
 const RESULT_USE_BREAKPOINT = -1 # ("OK" and other error types are >= 0)
 static var _save_dump_thread: Thread
+## Used to periodically check for new results in `_save_dump_results` while `_save_processing`
 static var _timer: Timer
+## To be used when accessing _save_dump_results, _exiting, and _request_batch
 static var _save_mutex := Mutex.new()
-static var _last_dump_mutex := Mutex.new()
+## True while the save thread is processing
 static var _save_processing := false
+## Signals the save thread when data is ready
 static var _save_data_ready := Semaphore.new()
-## [request] = result
-static var _save_dump_results := {}
+static var _save_dump_results := {} ## {request: result}
 static var _exiting := false
 
-static func _static_init():
+static func _static_init(): # todo debug
 	_print("ERROR_DUMP STATIC INIT")
-	_print(Engine.capture_script_backtraces()[0].format())
 
-static func _print(...args):
+static func _print(...args): # todo debug
 	args.push_front("[t%2d|m%3d | %f] " % [
 		OS.get_thread_caller_id(),
 		_save_mutex.get_instance_id(),
@@ -39,10 +40,8 @@ static func _print(...args):
 		# "[#" + str() + "|" + str(Time.get_ticks_usec() / 1e6) + "] ")
 	print.callv(args)
 
-## Since multiple dump operations could delete the contents of the dump before a breakpoint is reached, store the last contents
-static var _last_dump_string: String
-
 class RequestBatch:
+	## Fired on the main thread when the request is done
 	signal done(result: int)
 	## List of data arguments (see save_dump for contents)
 	var list := []
@@ -57,9 +56,9 @@ static func _append_request(data):
 	_save_mutex.unlock()
 	return _request_batch
 
-## Saves a dump to the current session's dump file
-## If no session file exists, creates a new one
-## [param on_failure] Receives the encountered error type
+## Saves a dump to the current session's dump file[br]
+## If no session file exists, creates a new one[br]
+## [param on_failure] Called with the encountered error type
 static func save_dump(logger_data: Dictionary, reason := DumpReason.UNSPECIFIED, context := "", on_failure: Callable = Callable()):
 	var data = {
 		"logger_data": logger_data,
@@ -79,6 +78,7 @@ static func save_dump(logger_data: Dictionary, reason := DumpReason.UNSPECIFIED,
 		_timer.wait_time = 0.01
 		game_window.add_child(_timer)
 		_timer.connect("timeout", _timer_callback)
+		# todo use any 1 of the following that works:
 		game_window.tree_exited.connect(func():
 			_print("TREE_EXITING")
 			_save_cleanup())
@@ -95,9 +95,7 @@ static func save_dump(logger_data: Dictionary, reason := DumpReason.UNSPECIFIED,
 	if result > OK:
 		on_failure.call(result)
 	if result != OK and not _exiting:
-		_print("breakpoint ", OS.get_thread_caller_id())
 		breakpoint
-		_print("after breakpoint ", OS.get_thread_caller_id())
 
 static func _timer_callback():
 	if not _save_processing:
@@ -198,20 +196,23 @@ static func _save_dump_threaded_main(request: RequestBatch) -> Error:
 		if OS.has_feature("editor") and reason >= DumpReason.APP_CLOSE:
 			# Copy the entire session file to latest_dump
 			var session_file = FileAccess.open(session_path, FileAccess.READ)
-			_print("LOCKING LAST_DUMP_MUTEX")
-			_last_dump_mutex.lock()
 			var latest_file = FileAccess.open(LATEST_DUMP_PATH, FileAccess.WRITE)
 
 			_print("stage1")
 
 			if session_file and latest_file:
 				_print("stage2")
-				var now = Time.get_ticks_msec()
-				while Time.get_ticks_msec() - now <= 1000:
-					pass
-				_last_dump_string = session_file.get_as_text()
-				_print("store: ", latest_file.store_string(_last_dump_string))
+				# todo ensure code works while the spin-lock is enabled, then delete:
+				# var now = Time.get_ticks_msec()
+				# while Time.get_ticks_msec() - now <= 600:
+				# 	pass
+				var contents = session_file.get_as_text()
+				_print(" session file length: ", session_file.get_length())
+				_print(" contents length: ", contents.length())
+				_print("store: ", latest_file.store_string(contents))
 				latest_file.flush()
+				_print(" latest_file length: ", latest_file.get_length())
+				_print("contents: ", contents.substr(contents.length() - 100)) # todo shouldn't this print out the last 100 characters? It's printing out characters from the middle of the file!
 				_print("after flush")
 				latest_file.close()
 				_print("stage3")
@@ -221,8 +222,6 @@ static func _save_dump_threaded_main(request: RequestBatch) -> Error:
 				# Pause execution and load the dump in the editor immediately.
 				if reason >= DumpReason.WARNING:
 					use_breakpoint = true
-			_print("unlocking LAST_DUMP_MUTEX")
-			_last_dump_mutex.unlock()
 
 		if reason == DumpReason.MANUAL:
 			_print("show_dbg_window")
@@ -286,6 +285,7 @@ static func show_debug_window(session_path: String) -> void:
 static func paths_equal(a: String, b: String) -> bool:
 	return ProjectSettings.globalize_path(a).simplify_path() == ProjectSettings.globalize_path(b).simplify_path()
 
+static var _empty_dump_array: Array[DumpData] = []
 ## Loads and validates all dumps from a file
 ## Returns an array of DumpData objects, skipping any that fail validation
 static func load_dumps(file_path: String) -> Array[DumpData]:
@@ -293,59 +293,41 @@ static func load_dumps(file_path: String) -> Array[DumpData]:
 
 	var file_content: String
 	var is_latest = paths_equal(file_path, LATEST_DUMP_PATH)
-	var have_lock := false
-	if is_latest:
-		# have_lock = _last_dump_mutex.try_lock()
-		have_lock = true
-		_print("before lock")
-		_last_dump_mutex.lock() # todo tmp
-		_print("after lock")
+	## result of inner
+	var result := {
+		"error_msg": "",
+		"dumps": false
+	}
 
-		_print("have lock? ", have_lock)
-		if not have_lock:
-			if not _last_dump_string:
-				return []
-			file_content = _last_dump_string
-			_print("using _last_dump_string, length: ", _last_dump_string.length())
+	var retry_duration = 1000 if is_latest else 0 # todo consider 500 or less
+	var start_time = Time.get_ticks_msec()
+	var dumps
+	while true:
+		result["error_msg"] = ""
+		var code = _load_dumps_inner(file_path, result)
+		var error_msg: String = result["error_msg"]
+		dumps = result["dumps"]
+
+		if code == OK:
+			break
+		elif error_msg.is_empty(): # inner ran into an error and was unable to set error_msg
+			print("error msg empty: ", error_msg)
+			error_msg = "error " + str(code) + " while loading dump file: " + file_path
 		else:
-			_print("no mutex lock so should be able to load normally")
+			print("error msg received: ", error_msg)
 
-	_print("load_dumps2. file_content length: ", file_content.length())
+		if Time.get_ticks_msec() - start_time >= retry_duration:
+			# out of retries
+			print("out of retries")
+			push_error(error_msg)
+			return _empty_dump_array
 
-	var inner = func():
-		if not file_content:
-			if not FileAccess.file_exists(file_path):
-				push_error("Dump file not found: " + file_path)
-				return []
+		# todo idk if this is needed (but there is now a bunch of 'await' in codebase for `load_dumps` because of it)
+		var game_window: Window = Engine.get_main_loop().root.get_window()
+		await game_window.get_tree().create_timer(0.001).timeout
 
-			var file = FileAccess.open(file_path, FileAccess.READ)
-			if not file:
-				push_error("Failed to open dump file: " + file_path)
-				return []
-			file_content = file.get_as_text()
-
-	var result = inner.call()
-	if have_lock:
-		print(">>UNLOCKING _last_dump_mutex")
-		_last_dump_mutex.unlock()
-	if result != null:
-		return result
 
 	_print("load_dumps3")
-	_print(file_content)
-
-	var json = JSON.new()
-	var parse_result = json.parse(file_content)
-	if parse_result != OK:
-		push_error("Failed to parse dump file: " + json.get_error_message())
-		return []
-
-	var dumps = json.get_data()
-	if not dumps is Array:
-		push_error("Invalid dump file format - expected array of dumps")
-		return []
-
-	_print("load_dumps4")
 
 	var dump_data: Array[DumpData] = []
 	for idx in dumps.size():
@@ -358,6 +340,28 @@ static func load_dumps(file_path: String) -> Array[DumpData]:
 	_print("load_dumps5")
 	return dump_data
 
+static func _load_dumps_inner(file_path: String, result) -> Error:
+	if not FileAccess.file_exists(file_path):
+		result["error_msg"] = "Dump file not found: " + file_path
+		return ERR_FILE_NOT_FOUND
+	var file = FileAccess.open(file_path, FileAccess.READ)
+	if not file:
+		result["error_msg"] = "Failed to open dump file: " + file_path
+		return ERR_CANT_OPEN
+	var contents = file.get_as_text()
+	print("inner3 length: ", contents.length())
+	var json = JSON.new()
+	var parse_result = json.parse(contents)
+	if parse_result != OK:
+		result["error_msg"] = "Failed to parse dump file: " + json.get_error_message()
+		return ERR_INVALID_DATA
+	var dumps = json.get_data()
+	if not dumps is Array:
+		result["error_msg"] = "Invalid dump file format - expected array of dumps"
+		return ERR_INVALID_DATA
+	result["dumps"] = dumps
+	print("inner5")
+	return OK
 
 ## Lists all dump files in the dumps directory
 static func list_dump_files() -> Array[String]:
