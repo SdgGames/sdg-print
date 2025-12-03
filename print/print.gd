@@ -3,7 +3,7 @@ class_name SDG_Print extends Node
 ## Print singleton. Auto-registers under the name "Print"
 ##
 ## The Print module creates and maintains [Log] instances.
-## You can use this as a more advanced [code]print[/code] function through the [method info], 
+## You can use this as a more advanced [code]print[/code] function through the [method info],
 ## [method debug], etc. methods, or use it to automatically manage multiple [Log]s for each
 ## major component of the project.
 ## [br][br]
@@ -29,10 +29,10 @@ class_name SDG_Print extends Node
 ## Here is what a generic usage of a [Log] might look like:
 ## [codeblock]
 ## var _log: Log
-## 
+##
 ## func _ready():
 ##     _log = Print.create_logger("MyLogger", Print.VERBOSE, Print.VERBOSE)
-## 
+##
 ## func _on_thing_happened():
 ##     _log.info("A thing just happened.")
 ## [/codeblock]
@@ -46,8 +46,8 @@ class_name SDG_Print extends Node
 
 enum {
 	SILENT = 0,
-	## [br]Mirrors the values of [enum Log.Level]. Functions like [method Print.from] can take 
-	## this as an argument instead of taking [enum Log.Level]. For example, 
+	## [br]Mirrors the values of [enum Log.Level]. Functions like [method Print.from] can take
+	## this as an argument instead of taking [enum Log.Level]. For example,
 	## [code]Print.from("Player_Submodule_Logger", "Hello World!", Print.INFO)[/code]
 	ERROR = 1,
 	WARNING = 2,
@@ -81,18 +81,18 @@ var _current_module_width := 0
 func _init():
 	# Register project settings
 	PrintSettings._register_settings()
-	
+
 	# Initialize global settings
 	settings = PrintSettings.from_project_settings()
-	
+
 	# Clean up extra files from previous sessions.
 	ErrorDump.cleanup_old_dumps(settings.max_log_files)
-	
+
 	var registry = LoggerRegistry.load_from_project_settings()
-	
+
 	# Initialize Print logger from registry
 	_print_logger = Log.new()._second_init(
-		"Print", 
+		"Print",
 		registry.print_logger.print_level,
 		registry.print_logger.archive_level,
 		Log.LogType.SINGLETON,
@@ -100,20 +100,20 @@ func _init():
 	)
 	add_child(_print_logger)
 	_print_logger.process_priority = process_priority + 1
-	
+
 	# Initialize Global logger from registry
 	_global_logger = create_logger(
-		"Global", 
-		registry.global_logger.print_level, 
+		"Global",
+		registry.global_logger.print_level,
 		registry.global_logger.archive_level
 	)
-	
+
 	# Create all additional loggers from registry
 	for logger_config in registry.loggers:
 		_print_logger.verbose("Creating logger from registry: %s" % logger_config.name)
 		create_logger(
-			logger_config.name, 
-			logger_config.print_level, 
+			logger_config.name,
+			logger_config.print_level,
 			logger_config.archive_level
 		)
 
@@ -123,17 +123,17 @@ func _ready():
 	if has_node("/root/Console"):
 		var console = get_node("/root/Console")
 		_global_logger._console = console
-		console.add_command("Print.silence_all", silence_all, 0, 0, 
+		console.add_command("Print.silence_all", silence_all, 0, 0,
 				"Disables all printing to this console and the Output window or external console")
-		console.add_command("Print.silence_non_error_logs", silence_non_error_printing, 0, 0, 
+		console.add_command("Print.silence_non_error_logs", silence_non_error_printing, 0, 0,
 				"Disables all non-error printing.")
-		console.add_command("Print.dump_all_loggers", _dump_loggers, 0, 0, 
+		console.add_command("Print.dump_all_loggers", _dump_loggers, 0, 0,
 				"Dumps all of the prints stored in all of the loggers. Dumps to file, but also copies to the clipboard.")
-		console.add_command("Print.list_loggers", list_loggers, 0, 0, 
+		console.add_command("Print.list_loggers", list_loggers, 0, 0,
 				"Prints the names of all of the loggers to the console.")
-		console.add_command("Print.clear_all_dumps", _delete_dumps, 0, 0, 
+		console.add_command("Print.clear_all_dumps", _delete_dumps, 0, 0,
 				"Deletes all of the dump files in user://dumps.")
-		console.add_command("Print.push_test_error", _test_error, 0, 0, 
+		console.add_command("Print.push_test_error", _test_error, 0, 0,
 				"Pushes an error to the console and dump file. Logs at each level first, ending with the error.")
 
 
@@ -166,7 +166,7 @@ func create_logger(identifier, print_level, archive_level, custom_settings: Prin
 		_print_logger.debug("Print.create_logger creating new logger %s." % id)
 		# Update the module width if this logger has a longer name
 		_current_module_width = max(_current_module_width, id.length())
-		
+
 		var logger_settings = custom_settings if custom_settings else settings
 		var logger = Log.new()._second_init(
 			id,
@@ -231,6 +231,9 @@ func get_frame_title_from(identifier) -> String:
 		return ""
 
 
+var on_save_dump_failure = func():
+	# Do not trigger an error dump when throwing an error here.
+	_print_logger.error("Failed to save dump to file!", false)
 ## Dumps all logger data to disk, then resets all loggers.
 ## Use this if you just logged a lot of data (like generating a world, etc.)
 ## Use [param context] to indicate why this flush was performed. This will appear
@@ -238,14 +241,12 @@ func get_frame_title_from(identifier) -> String:
 func flush_logs(context := "", reason := ErrorDump.DumpReason.FLUSH):
 	# Logging an info will also allow us to fold lower quality logs at the start of the dump.
 	_print_logger.info("Dumping all loggers to file.")
-	
+
 	var logger_data = {}
 	for id in _logs.keys():
 		logger_data[id] = _logs[id].to_dict()
-	
-	if ErrorDump.save_dump(logger_data, reason, context) != OK:
-		# Do not trigger an error dump when throwing an error here.
-		_print_logger.error("Failed to save dump to file!", false)
+
+	ErrorDump.save_dump(logger_data, reason, context, on_save_dump_failure)
 	start_all()
 
 
@@ -276,7 +277,7 @@ func debug(message: String):
 
 
 ## Pass-through to the Global print singleton.
-## Prints a VERBOSE message to screen and console. This uses [code]print_verbose[/code], 
+## Prints a VERBOSE message to screen and console. This uses [code]print_verbose[/code],
 ## so it will only display if [code](OS.is_stdout_verbose() == true)[/code]
 func verbose(message: String):
 	_global_logger.verbose(message)
@@ -325,7 +326,7 @@ func _delete_dumps():
 func _test_error():
 	var levels = [_global_logger.print_level, _global_logger.archive_level]
 	_global_logger.print_level = Log.Level.VERBOSE
-	
+
 	var l = Print.get_logger("Player")
 	_global_logger.start_frame("Testing frame data output.")
 	_global_logger.in_frame("About to print at each level.")
@@ -357,10 +358,10 @@ func _unregister_logger(logger: Log):
 	if logger.id in _logs:
 		_logs.erase(logger.id)
 		_print_logger.debug("Un-Registered %s logger of type %s." % [
-			logger.id, 
+			logger.id,
 			Log.LogType.find_key(logger._log_type).to_camel_case()
 		])
-		
+
 		# Recalculate the maximum module width
 		_current_module_width = 0
 		for id in _logs.keys():

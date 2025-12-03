@@ -26,6 +26,7 @@ func _setup_session(session_id: int) -> void:
 ## Called when a breakpoint is hit during debugging.
 ## Triggers a dump load with focus on the Print tab.
 func _on_breaked(_can_debug: bool) -> void:
+	print("_on_breaked")
 	plugin_ref.load_latest_dump()
 
 
