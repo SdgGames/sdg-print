@@ -12,10 +12,10 @@ class_name Log extends Node
 ## the entire saved buffer will be printed. You can call [method start] to clear the buffer if you
 ## want to reset the message buffer (starting a new game, loading a new file, etc.).
 ## [br][br]
-## The logger provides a convenient interface for tracking data within a single frame across two 
+## The logger provides a convenient interface for tracking data within a single frame across two
 ## levels: a title level for high-level state information, and a detailed level for specifics.
 ## Use [method start_frame] to clear the previous frame's data. Then, use [method set_frame_title]
-## to build up the title string (e.g., "AI: Patrolling | Target: Player") and [method in_frame] to 
+## to build up the title string (e.g., "AI: Patrolling | Target: Player") and [method in_frame] to
 ## log detailed information line by line. Finally, use [method end_frame] to indicate that the frame
 ## data is fully written.
 
@@ -87,13 +87,13 @@ func _second_init(id := &"", print_level := Log.Level.VERBOSE, archive_level := 
 		log_type := LogType.OBJECT, custom_settings: PrintSettings = null) -> Log:
 	self.id = id
 	if log_type == LogType.SINGLETON:
-		self.name = str(id) 
+		self.name = str(id)
 	self.print_level = print_level
 	self.archive_level = archive_level
 	self._log_type = log_type
 	self.settings = custom_settings if custom_settings else Print.settings
 	self._initialized = true
-	
+
 	# Initialize our history buffers
 	_log_history = RingBuffer.new(settings.max_log_entries)
 	_frame_history = RingBuffer.new(settings.max_frames)
@@ -124,7 +124,7 @@ func assert_that(is_true, message := ""):
 func error(message: String, dump_error := true):
 	Print.error_count += 1
 	var entry = _log(Log.Level.ERROR, message)
-	
+
 	if print_level >= Log.Level.ERROR:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
@@ -139,7 +139,7 @@ func error(message: String, dump_error := true):
 func warning(message: String, dump_warning := false):
 	Print.warning_count += 1
 	var entry = _log(Log.Level.WARNING, message)
-	
+
 	if print_level >= Log.Level.WARNING:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
@@ -152,7 +152,7 @@ func warning(message: String, dump_warning := false):
 ## Prints an INFO message to screen and console.
 func info(message: String):
 	var entry = _log(Log.Level.INFO, message)
-	
+
 	if print_level >= Log.Level.INFO:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
@@ -162,7 +162,7 @@ func info(message: String):
 ## Prints a DEBUG message to screen and console.
 func debug(message: String):
 	var entry = _log(Log.Level.DEBUG, message)
-	
+
 	if print_level >= Log.Level.DEBUG:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
@@ -172,7 +172,7 @@ func debug(message: String):
 ## Prints a VERBOSE message to screen and console.
 func verbose(message: String):
 	var entry = _log(Log.Level.VERBOSE, message)
-	
+
 	if print_level >= Log.Level.VERBOSE:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
