@@ -65,8 +65,6 @@ static func save_dump(logger_data: Dictionary, reason := DumpReason.UNSPECIFIED,
 			# Pause execution and load the dump in the editor immediately.
 			if reason >= DumpReason.WARNING:
 				breakpoint
-				print(Print.list_loggers())
-				breakpoint
 	return OK
 
 
