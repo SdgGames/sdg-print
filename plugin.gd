@@ -15,7 +15,7 @@ extends EditorPlugin
 const PluginName := "Print"
 
 ## Path to the Print singleton scene
-const PluginPath := "res://addons/sdg-print/print/print.tscn"
+const PluginPath := "res://addons/sdg-print/print/print.gd"
 
 ## Path to the editor tab scene for viewing dumps
 const PRINT_EDITOR_TAB = preload("uid://cvb0f4ora2d6b") # print_editor_tab.tscn
@@ -37,12 +37,12 @@ func _enter_tree() -> void:
 	# Register project settings and autoload singleton
 	PrintSettings._register_settings()
 	add_autoload_singleton(PluginName, PluginPath)
-	
+
 	# Create and add the dump viewer to the main editor interface
 	editor_tab = PRINT_EDITOR_TAB.instantiate()
 	EditorInterface.get_editor_main_screen().add_child(editor_tab)
 	_make_visible(false)
-	
+
 	# Set up debugger plugin for monitoring breakpoints
 	debugger_plugin = DumpDebugger.new(self)
 	add_debugger_plugin(debugger_plugin)
@@ -51,10 +51,10 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	# Clean up autoload singleton
 	remove_autoload_singleton(PluginName)
-	
+
 	# Clean up UI elements
 	editor_tab.queue_free()
-	
+
 	# Clean up debugger plugin
 	remove_debugger_plugin(debugger_plugin)
 	debugger_plugin = null
@@ -88,18 +88,18 @@ func load_latest_dump(grab_focus := true) -> void:
 	# Prevent multiple simultaneous loads
 	if loading_dump:
 		return
-	
+
 	var absolute_path = ProjectSettings.globalize_path(ErrorDump.LATEST_DUMP_PATH)
-	
+
 	if FileAccess.file_exists(absolute_path):
 		loading_dump = true
 		# Start the file operation
 		editor_tab.load_latest_dump(absolute_path)
-		
+
 		# Wait for UI updates before switching tabs
 		await get_tree().process_frame
 		await get_tree().process_frame
-		
+
 		if loading_dump:
 			loading_dump = false
 			if grab_focus:

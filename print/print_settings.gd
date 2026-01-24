@@ -11,7 +11,7 @@ class_name PrintSettings extends Resource
 ## var settings = PrintSettings.new()
 ## settings.show_timestamps = false
 ## settings.error_color = Color.DARK_RED
-## 
+##
 ## # Create logger with custom settings
 ## var logger = Print.create_logger("CustomLogger", Print.VERBOSE, Print.VERBOSE, settings)
 ## [/codeblock]
@@ -69,7 +69,7 @@ class_name PrintSettings extends Resource
 @export var module_name_color := Color.MAGENTA
 
 @export_group("Dump Viewer Colors")
-## The color for text 
+## The color for text
 @export var default_message_color := Color.WHITE_SMOKE
 ## Color used to start a new dump in the debug viewer.
 @export var dump_header_color := Color.GOLD
@@ -168,11 +168,11 @@ static func _register_settings() -> void:
 	for setting_name in DEFAULT_SETTINGS:
 		var full_path = SETTINGS_PATH + setting_name
 		var setting_info = DEFAULT_SETTINGS[setting_name]
-		
+
 		if not ProjectSettings.has_setting(full_path):
 			ProjectSettings.set_setting(full_path, setting_info["value"])
 			ProjectSettings.set_initial_value(full_path, setting_info["value"])
-			
+
 			var info = {
 				"name": full_path,
 				"type": setting_info["type"],
@@ -181,7 +181,7 @@ static func _register_settings() -> void:
 				info["hint"] = setting_info["hint"]
 			if setting_info.has("hint_string"):
 				info["hint_string"] = setting_info["hint_string"]
-				
+
 			ProjectSettings.add_property_info(info)
 
 
@@ -200,12 +200,12 @@ func load_from_project_settings() -> void:
 	max_log_entries = ProjectSettings.get_setting(SETTINGS_PATH + "history/max_log_entries")
 	max_frames = ProjectSettings.get_setting(SETTINGS_PATH + "history/max_frames")
 	max_log_files = ProjectSettings.get_setting(SETTINGS_PATH + "history/max_log_files")
-	
+
 	show_timestamps = ProjectSettings.get_setting(SETTINGS_PATH + "format/show_timestamps")
 	show_module_names = ProjectSettings.get_setting(SETTINGS_PATH + "format/show_module_names")
 	show_log_levels = ProjectSettings.get_setting(SETTINGS_PATH + "format/show_log_levels")
 	max_module_width = ProjectSettings.get_setting(SETTINGS_PATH + "format/module_name_max_padding_width")
-	
+
 	error_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/error")
 	warning_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/warning")
 	info_color = ProjectSettings.get_setting(SETTINGS_PATH + "colors/info")
