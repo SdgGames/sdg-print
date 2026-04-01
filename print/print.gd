@@ -137,12 +137,14 @@ func _ready():
 				"Pushes an error to the console and dump file. Logs at each level first, ending with the error.")
 
 
-# Dump loggers when we detect that the application is exiting.
+## Dump loggers when we detect that the application is exiting.
+## Don't dump on application close in release builds.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		# Create the final dump
-		_print_logger.info("Application closing, final dump created")
-		var dump_str = flush_logs("", ErrorDump.DumpReason.APP_CLOSE)
+		if OS.has_feature("editor") or OS.is_debug_build():
+			# Create the final dump
+			_print_logger.info("Application closing, final dump created")
+			flush_logs("", ErrorDump.DumpReason.APP_CLOSE)
 
 
 ## Creates and returns the [Log] instance for the module that matches [param identifier].
