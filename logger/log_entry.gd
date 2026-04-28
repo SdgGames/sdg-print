@@ -50,7 +50,7 @@ func format(settings: PrintSettings) -> String:
 	var module_width = settings.max_module_width
 	if !Engine.is_editor_hint() and Print:
 		module_width = Print._current_module_width
-	
+
 	# Add timestamp if enabled
 	if settings.show_timestamps:
 		# Convert microseconds to a readable time format using Time singleton
@@ -58,7 +58,7 @@ func format(settings: PrintSettings) -> String:
 		var seconds = msec / 1000
 		var minutes = seconds / 60
 		var hours = minutes / 60
-		
+
 		var time_string = "%02d:%02d:%02d.%03d" % [
 			hours % 24,
 			minutes % 60,
@@ -69,7 +69,7 @@ func format(settings: PrintSettings) -> String:
 			settings.timestamp_color.to_html(false),
 			time_string
 		]
-	
+
 	# Add module name if enabled
 	if settings.show_module_names:
 		formatted_message += "[b][color=#%s]%-*s[/color][/b] " % [
@@ -77,7 +77,7 @@ func format(settings: PrintSettings) -> String:
 			module_width,
 			module
 		]
-	
+
 	# Add log level if enabled
 	if settings.show_log_levels:
 		var level_name = Log.Level.keys()[level]
@@ -86,10 +86,10 @@ func format(settings: PrintSettings) -> String:
 			8,
 			level_name + ":"
 		]
-	
+
 	# Add the actual message
 	formatted_message += message
-	
+
 	return formatted_message
 
 
@@ -99,7 +99,7 @@ func get_time_string() -> String:
 	var seconds = msec / 1000
 	var minutes = seconds / 60
 	var hours = minutes / 60
-	
+
 	return "%02d:%02d:%02d.%03d" % [
 		hours % 24,
 		minutes % 60,

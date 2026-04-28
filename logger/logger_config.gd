@@ -12,12 +12,12 @@ class_name LoggerConfig extends Resource
 
 ## The print (console) level for the logger.
 ## Controls what messages appear in the Output panel during execution.
-@export_enum("Silent", "Error", "Warning", "Info", "Debug", "Verbose") 
+@export_enum("Silent", "Error", "Warning", "Info", "Debug", "Verbose")
 var print_level: int = 5
 
 ## The archive (file write) level for the logger.
 ## Controls what messages are saved for error dumps and debugging.
-@export_enum("Silent", "Error", "Warning", "Info", "Debug", "Verbose") 
+@export_enum("Silent", "Error", "Warning", "Info", "Debug", "Verbose")
 var archive_level: int = 5
 
 

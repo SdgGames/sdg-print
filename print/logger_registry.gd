@@ -1,7 +1,7 @@
 @tool
 class_name LoggerRegistry extends Resource
 ## Resource that manages a collection of logger configurations for the Print system.
-## 
+##
 ## Each project can create its own registry resource and reference it in
 ## Project Settings under debug/logging/logger_registry_path.
 ## The Print singleton will automatically load this registry and create all defined loggers
@@ -55,19 +55,19 @@ static func register_project_settings() -> void:
 	if not ProjectSettings.has_setting(REGISTRY_PATH_SETTING):
 		ProjectSettings.set_setting(REGISTRY_PATH_SETTING, "")
 		ProjectSettings.set_initial_value(REGISTRY_PATH_SETTING, "")
-		
+
 		ProjectSettings.add_property_info({
 			"name": REGISTRY_PATH_SETTING,
 			"type": TYPE_STRING,
 			"hint": PROPERTY_HINT_FILE,
 			"hint_string": "*.tres"
 		})
-	
+
 	# Register require_registry setting
 	if not ProjectSettings.has_setting(REQUIRE_REGISTRY_SETTING):
 		ProjectSettings.set_setting(REQUIRE_REGISTRY_SETTING, true)
 		ProjectSettings.set_initial_value(REQUIRE_REGISTRY_SETTING, true)
-		
+
 		ProjectSettings.add_property_info({
 			"name": REQUIRE_REGISTRY_SETTING,
 			"type": TYPE_BOOL,
@@ -82,7 +82,7 @@ static func register_project_settings() -> void:
 static func load_from_project_settings() -> LoggerRegistry:
 	# Get the registry path from project settings
 	var registry_path = ProjectSettings.get_setting(REGISTRY_PATH_SETTING, "")
-	
+
 	# Check if a path is set. You need to create a reosurce to manage autoload loggers.
 	if registry_path.is_empty():
 		if ProjectSettings.get_setting(REQUIRE_REGISTRY_SETTING, true):
@@ -92,7 +92,7 @@ static func load_from_project_settings() -> LoggerRegistry:
 					"want to create global loggers this way, disable ",
 					REQUIRE_REGISTRY_SETTING])
 		return LoggerRegistry.new(false)
-	
+
 	# Try to load the registry resource
 	if ResourceLoader.exists(registry_path):
 		var resource = ResourceLoader.load(registry_path)
