@@ -2,37 +2,37 @@
 class_name SDG_Print extends Node
 ## Print singleton. Auto-registers under the name "Print"
 ##
-## The Print module creates and maintains [Logger] instances.
-## You can use this as a more advanced [code]print[/code] function through the [method info], 
-## [method debug], etc. methods, or use it to automatically manage multiple [Logger]s for each
+## The Print module creates and maintains [Log] instances.
+## You can use this as a more advanced [code]print[/code] function through the [method info],
+## [method debug], etc. methods, or use it to automatically manage multiple [Log]s for each
 ## major component of the project.
 ## [br][br]
 ## The primary goal of this submodule is to allow print statements to remain in place when they are
 ## needed, but to also stop unnecessary prints from clogging the Output window.
-## [br]Both goals are met by giving each game component its own [Logger] instance with verbosity
+## [br]Both goals are met by giving each game component its own [Log] instance with verbosity
 ## filters. While developing a part of the game, you can turn up the verbosity to see what is
 ## happening in detail. When you move on to the next component, just turn the verbosity back down.
 ## When an error is encountered, you will have the option to dump all of the prints that were being
 ## filtered, so you can get the information you need, when you need it.
 ## [br][br]
-## The Print Global sets up two [Logger]s automatically.
-## [br]1. The [code]"Print"[/code] [Logger] is used internally,
-## and should be left alone. (If you are registering and un-registering a lot of [Logger]s, you may
+## The Print Global sets up two [Log]s automatically.
+## [br]1. The [code]"Print"[/code] [Log] is used internally,
+## and should be left alone. (If you are registering and un-registering a lot of [Log]s, you may
 ## want to turn the verbosity down.)
-## [br]2. All generic print calls are passed through to the [code]"Global"[/code] [Logger].
-## You can use this [Logger] if you don't want to set up something more specific, or if the printing
+## [br]2. All generic print calls are passed through to the [code]"Global"[/code] [Log].
+## You can use this [Log] if you don't want to set up something more specific, or if the printing
 ## frequency is low overall.
 ## [br][br]
-## [Logger] instances will automatically register with the Print singleton once they are created. If
+## [Log] instances will automatically register with the Print singleton once they are created. If
 ## you want to create a global logger for a component, use [method create_logger]. If you want a
-## per-instance logger, create a [Logger] node, and it will be tracked automatically.
-## Here is what a generic usage of a [Logger] might look like:
+## per-instance logger, create a [Log] node, and it will be tracked automatically.
+## Here is what a generic usage of a [Log] might look like:
 ## [codeblock]
-## var _log: Logger
-## 
+## var _log: Log
+##
 ## func _ready():
 ##     _log = Print.create_logger("MyLogger", Print.VERBOSE, Print.VERBOSE)
-## 
+##
 ## func _on_thing_happened():
 ##     _log.info("A thing just happened.")
 ## [/codeblock]
@@ -46,8 +46,8 @@ class_name SDG_Print extends Node
 
 enum {
 	SILENT = 0,
-	## [br]Mirrors the values of [enum Logger.LogLevel]. Functions like [method Print.from] can take 
-	## this as an argument instead of taking [enum Logger.LogLevel]. For example, 
+	## [br]Mirrors the values of [enum Log.Level]. Functions like [method Print.from] can take
+	## this as an argument instead of taking [enum Log.Level]. For example,
 	## [code]Print.from("Player_Submodule_Logger", "Hello World!", Print.INFO)[/code]
 	ERROR = 1,
 	WARNING = 2,
@@ -56,11 +56,6 @@ enum {
 	VERBOSE = 5,
 	FRAME_ONLY = 6, ## Internal value for storing frames in dump files. Do not use.
 }
-
-## The default [enum Logger.LogLevel] for printing from the "Print" logger.
-const self_print_level := Logger.LogLevel.WARNING
-## The default [enum Logger.LogLevel] for archiving from the "Print" logger.
-const self_archive_level := Logger.LogLevel.VERBOSE
 
 ## Global print settings used as defaults for all loggers without custom settings.
 @export var settings: PrintSettings
@@ -73,11 +68,11 @@ const self_archive_level := Logger.LogLevel.VERBOSE
 ## Current session's dump file path
 var current_dump_file: String = ""
 
-# Contains all of the active [Logger]s in the project.
+# Contains all of the active [Log]s in the project.
 var _logs := {}
 # References to the global and local logger instances.
-var _global_logger: Logger
-var _print_logger: Logger
+var _global_logger: Log
+var _print_logger: Log
 # Current width needed to align all logger module names.
 var _current_module_width := 0
 
@@ -86,71 +81,84 @@ var _current_module_width := 0
 func _init():
 	# Register project settings
 	PrintSettings._register_settings()
-	
+
 	# Initialize global settings
 	settings = PrintSettings.from_project_settings()
-	
+
 	# Clean up extra files from previous sessions.
 	ErrorDump.cleanup_old_dumps(settings.max_log_files)
-	
-	# Create the print logger with default settings
-	_print_logger = Logger.new()._second_init(
-		"Print", 
-		self_print_level,
-		self_archive_level,
-		Logger.LogType.SINGLETON,
+
+	var registry = LoggerRegistry.load_from_project_settings()
+
+	# Initialize Print logger from registry
+	_print_logger = Log.new()._second_init(
+		"Print",
+		registry.print_logger.print_level,
+		registry.print_logger.archive_level,
+		Log.LogType.SINGLETON,
 		settings
 	)
 	add_child(_print_logger)
 	_print_logger.process_priority = process_priority + 1
-	_global_logger = create_logger("Global", VERBOSE, VERBOSE)
+
+	# Initialize Global logger from registry
+	_global_logger = create_logger(
+		"Global",
+		registry.global_logger.print_level,
+		registry.global_logger.archive_level
+	)
+
+	# Create all additional loggers from registry
+	for logger_config in registry.loggers:
+		_print_logger.verbose("Creating logger from registry: %s" % logger_config.name)
+		create_logger(
+			logger_config.name,
+			logger_config.print_level,
+			logger_config.archive_level
+		)
 
 
 # Connect to the Console (if it is present)
 func _ready():
-	if !has_node("/root/Console"):
-		return
-	var console = get_node("/root/Console")
-	_global_logger._console = console
-	console.add_command("silence_all_prints", self, "silence_all")\
-			.set_description("Disables all printing to this console and the Output window or external console")\
-			.register()
-	console.add_command("silence_non_error_prints", self, "silence_non_error_printing")\
-			.set_description("Disables all non-error printing.")\
-			.register()
-	console.add_command("dump_all_loggers", self, "_dump_loggers")\
-			.set_description("Dumps all of the prints stored in all of the loggers. Dumps to file, but also copies to the clipboard.")\
-			.register()
-	console.add_command("list_loggers", self, "list_loggers")\
-			.set_description("Prints the names of all of the loggers to the console.")\
-			.register()
-	console.add_command("clear_all_dumps", self, "_delete_dumps")\
-			.set_description("Deletes all of the dump files in user://dumps.")\
-			.register()
-	console.add_command("push_test_error", self, "_test_error")\
-			.set_description("Pushes an error to the console and dump file. Logs at each level first, ending with the error.")\
-			.register()
+	if has_node("/root/Console"):
+		var console = get_node("/root/Console")
+		_global_logger._console = console
+		console.add_command("Print.silence_all", silence_all, 0, 0,
+				"Disables all printing to this console and the Output window or external console")
+		console.add_command("Print.silence_non_error_logs", silence_non_error_printing, 0, 0,
+				"Disables all non-error printing.")
+		console.add_command("Print.dump_all_loggers", _dump_loggers, 0, 0,
+				"Dumps all of the prints stored in all of the loggers. Dumps to file, but also copies to the clipboard.")
+		console.add_command("Print.list_loggers", list_loggers, 0, 0,
+				"Prints the names of all of the loggers to the console.")
+		console.add_command("Print.clear_all_dumps", _delete_dumps, 0, 0,
+				"Deletes all of the dump files in user://dumps.")
+		console.add_command("Print.push_test_error", _test_error, 0, 0,
+				"Pushes an error to the console and dump file. Logs at each level first, ending with the error.")
 
 
-# Dump loggers when we detect that the application is exiting.
+## Dump loggers when we detect that the application is exiting.
+## Don't dump on application close in release builds.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		# Create the final dump
-		_print_logger.info("Application closing, final dump created")
-		var dump_str = flush_logs("", ErrorDump.DumpReason.APP_CLOSE)
+		if OS.has_feature("editor") or OS.is_debug_build():
+			# Create the final dump
+			_print_logger.info("Application closing, final dump created")
+			flush_logs("", ErrorDump.DumpReason.APP_CLOSE)
 
 
-## Creates and returns the [Logger] instance for the module that matches [param identifier].
-## Will always overwrite the logger's [member Logger.print_level] and [member Logger.archive_level]
-## with the provided values. If you need to reference the [Logger] before it is created
+## Creates and returns the [Log] instance for the module that matches [param identifier].
+## Will always overwrite the logger's [member Log.print_level] and [member Log.archive_level]
+## with the provided values. If you need to reference the [Log] before it is created
 ## (such as during [code]_ready[/code] calls in scene creation), you can safely call
-## [code]get_logger(id, true)[/code] to generate the [Logger] object. The object will default to
+## [code]get_logger(id, true)[/code] to generate the [Log] object. The object will default to
 ## [code](VERBOSE, VERBOSE)[/code] until [method create_logger] is finally called.
-func create_logger(identifier, print_level, archive_level, custom_settings: PrintSettings = null) -> Logger:
+func create_logger(identifier, print_level, archive_level, custom_settings: PrintSettings = null) -> Log:
 	var id = _get_id(identifier)
 	if id in _logs:
-		_print_logger.debug("Print.create_logger found existing logger %s." % id)
-		var logger: Logger = _logs[id]
+		_print_logger.info('Print.create_logger found existing logger "%s". %s' %
+				[id, "If you are trying to instance a new logger, then this is an error."])
+		var logger: Log = _logs[id]
 		logger.print_level = print_level
 		logger.archive_level = archive_level
 		if custom_settings:
@@ -160,12 +168,12 @@ func create_logger(identifier, print_level, archive_level, custom_settings: Prin
 		_print_logger.debug("Print.create_logger creating new logger %s." % id)
 		# Update the module width if this logger has a longer name
 		_current_module_width = max(_current_module_width, id.length())
-		
+
 		var logger_settings = custom_settings if custom_settings else settings
-		var logger = Logger.new()._second_init(
+		var logger = Log.new()._second_init(
 			id,
-			Logger.LogLevel.values()[print_level],
-			Logger.LogLevel.values()[archive_level],
+			Log.Level.values()[print_level],
+			Log.Level.values()[archive_level],
 			_get_type(identifier),
 			logger_settings
 		)
@@ -174,12 +182,12 @@ func create_logger(identifier, print_level, archive_level, custom_settings: Prin
 		return logger
 
 
-## Returns the [Logger] instance for the selected module.
-## Will throw an error and return [code]null[/code] if no [Logger] can be found matching
+## Returns the [Log] instance for the selected module.
+## Will throw an error and return [code]null[/code] if no [Log] can be found matching
 ## [param identifier]. Set [param get_or_create] to [code]true[/code] to bypass the error.
-## This is useful for referencing a [Logger] that you instance elsewhere in the scene.
-## See [method create_logger] for additional details about [Logger] creation.
-func get_logger(identifier, get_or_create := false) -> Logger:
+## This is useful for referencing a [Log] that you instance elsewhere in the scene.
+## See [method create_logger] for additional details about [Log] creation.
+func get_logger(identifier, get_or_create := false) -> Log:
 	var id = _get_id(identifier)
 	if id in _logs:
 		_print_logger.verbose("get_logger found existing logger %s." % id)
@@ -191,10 +199,10 @@ func get_logger(identifier, get_or_create := false) -> Logger:
 		return null
 
 
-## Prints to the selected [Logger] instance at the specified [param level].
+## Prints to the selected [Log] instance at the specified [param level].
 ## If no level is indicated, prints at DEBUG level.
-## Will throw an error if no [Logger] matches [param identifier]
-func from(identifier, message: String, level = Logger.LogLevel.DEBUG):
+## Will throw an error if no [Log] matches [param identifier]
+func from(identifier, message: String, level = Log.Level.DEBUG):
 	var logger_id = _get_id(identifier)
 	if _logs.has(logger_id):
 		_logs[logger_id].print_at_level(message, level)
@@ -232,11 +240,11 @@ func get_frame_title_from(identifier) -> String:
 func flush_logs(context := "", reason := ErrorDump.DumpReason.FLUSH):
 	# Logging an info will also allow us to fold lower quality logs at the start of the dump.
 	_print_logger.info("Dumping all loggers to file.")
-	
+
 	var logger_data = {}
 	for id in _logs.keys():
 		logger_data[id] = _logs[id].to_dict()
-	
+
 	if ErrorDump.save_dump(logger_data, reason, context) != OK:
 		# Do not trigger an error dump when throwing an error here.
 		_print_logger.error("Failed to save dump to file!", false)
@@ -270,24 +278,24 @@ func debug(message: String):
 
 
 ## Pass-through to the Global print singleton.
-## Prints a VERBOSE message to screen and console. This uses [code]print_verbose[/code], 
+## Prints a VERBOSE message to screen and console. This uses [code]print_verbose[/code],
 ## so it will only display if [code](OS.is_stdout_verbose() == true)[/code]
 func verbose(message: String):
 	_global_logger.verbose(message)
 
 
-## Turns off all [Logger]s. [Logger]s will still increment the [member warning_count] and
+## Turns off all [Log]s. [Log]s will still increment the [member warning_count] and
 ## [member error_count] in the Print singleton.
 func silence_all():
 	for id in _logs.keys():
-		_logs[id].print_level = Logger.LogLevel.SILENT
-		_logs[id].archive_level = Logger.LogLevel.SILENT
+		_logs[id].print_level = Log.Level.SILENT
+		_logs[id].archive_level = Log.Level.SILENT
 
 
 ## Sets all [Loggers] to only print errors.
 func silence_non_error_printing():
 	for id in _logs.keys():
-		_logs[id].print_level = Logger.LogLevel.ERROR
+		_logs[id].print_level = Log.Level.ERROR
 
 
 ## Resets warning and error counts to zero.
@@ -305,9 +313,9 @@ func list_loggers() -> Array:
 	return _logs.keys()
 
 
-# Function for the Console to grab onto. Calls [Logger.error_dump] on EVERY logger in the project.
+# Function for the Console to grab onto. Calls [Log.error_dump] on EVERY logger in the project.
 func _dump_loggers():
-	var log_string = flush_logs("User initiated dump from console.", ErrorDump.DumpReason.MANUAL)
+	flush_logs("User initiated dump from console.", ErrorDump.DumpReason.MANUAL)
 
 
 # Function for the Console to grab onto. Deletes all dumps from the filesystem.
@@ -318,8 +326,8 @@ func _delete_dumps():
 # Function for the Console to grab onto. Prints a log at each level, ending with an Error.
 func _test_error():
 	var levels = [_global_logger.print_level, _global_logger.archive_level]
-	_global_logger.print_level = Logger.LogLevel.VERBOSE
-	
+	_global_logger.print_level = Log.Level.VERBOSE
+
 	var l = Print.get_logger("Player")
 	_global_logger.start_frame("Testing frame data output.")
 	_global_logger.in_frame("About to print at each level.")
@@ -331,30 +339,30 @@ func _test_error():
 	_global_logger.error("Test error")
 
 
-# Adds a new [Logger] to the logging system. Used by the [Logger] class, use [method create_logger] instead.
+# Adds a new [Log] to the logging system. Used by the [Log] class, use [method create_logger] instead.
 # I set these to private because they are internal to the module, even if they are called from outside the class.
-func _register_logger(logger: Logger):
+func _register_logger(logger: Log):
 	if logger.id in _logs:
 		if _logs[logger.id] != logger:
 			_print_logger.error("A logger with the identifier '%s' is already registered." % logger.id)
 		# Else, we already added this logger in the create_logger call.
 		return
 	_logs[logger.id] = logger
-	_print_logger.debug("Registered %s logger of type %s." % [logger.id, Logger.LogType.find_key(logger._log_type).to_camel_case()])
+	_print_logger.debug("Registered %s logger of type %s." % [logger.id, Log.LogType.find_key(logger._log_type).to_camel_case()])
 	if has_node("/root/Console"):
 		logger._console = $"/root/Console"
 
 
-# Removes a [Logger] from the logging system. Used by the [Logger] class. If you want to delete [Logger]s,
+# Removes a [Log] from the logging system. Used by the [Log] class. If you want to delete [Log]s,
 # create them as children of your nodes instead of adding them globally via [member create_logger]
-func _unregister_logger(logger: Logger):
+func _unregister_logger(logger: Log):
 	if logger.id in _logs:
 		_logs.erase(logger.id)
 		_print_logger.debug("Un-Registered %s logger of type %s." % [
-			logger.id, 
-			Logger.LogType.find_key(logger._log_type).to_camel_case()
+			logger.id,
+			Log.LogType.find_key(logger._log_type).to_camel_case()
 		])
-		
+
 		# Recalculate the maximum module width
 		_current_module_width = 0
 		for id in _logs.keys():
@@ -376,21 +384,21 @@ func _unregister_logger(logger: Logger):
 func _get_id(identifier) -> String:
 	var id := &""
 	match _get_type(identifier):
-		Logger.LogType.SINGLETON:
+		Log.LogType.SINGLETON:
 			id = identifier
-		Logger.LogType.OBJECT:
+		Log.LogType.OBJECT:
 			id = str(identifier.get_path())
-		Logger.LogType.UNKNOWN:
+		Log.LogType.UNKNOWN:
 			id = str(identifier)
 	return id
 
 
 # Helper function to get the type of a logger.
 # Determines the type of the logger based on the identifier.
-func _get_type(identifier) -> Logger.LogType:
-	var type = Logger.LogType.UNKNOWN
+func _get_type(identifier) -> Log.LogType:
+	var type = Log.LogType.UNKNOWN
 	if identifier is String:
-		type = Logger.LogType.SINGLETON
+		type = Log.LogType.SINGLETON
 	elif is_instance_valid(identifier):
-		type = Logger.LogType.OBJECT
+		type = Log.LogType.OBJECT
 	return type

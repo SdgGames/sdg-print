@@ -1,21 +1,21 @@
 @icon("res://addons/sdg-print/logger/logger_icon.svg")
-class_name Logger extends Node
+class_name Log extends Node
 ## More advanced print class that logs events, warnings, and errors for a particular subsystem.
 ##
 ## A logging helper for a module or individual object.
 ## Can print to the standard output ([code]print()[/code]) and to the in-game console (if present).
 ## The output verbosity can be changed by setting [member print_level] or [member archive_level].
 ## [br][br]
-## If a module's [member print_level] is set to [enum LogLevel.SILENT] nothing will be printed to
+## If a module's [member print_level] is set to [enum Level.SILENT] nothing will be printed to
 ## the console, but messages will still be saved to a buffer. If an error is encountered
 ## (the call might look like: [code]my_logger.error("Something went wrong")[/code]),
 ## the entire saved buffer will be printed. You can call [method start] to clear the buffer if you
 ## want to reset the message buffer (starting a new game, loading a new file, etc.).
 ## [br][br]
-## The logger provides a convenient interface for tracking data within a single frame across two 
+## The logger provides a convenient interface for tracking data within a single frame across two
 ## levels: a title level for high-level state information, and a detailed level for specifics.
 ## Use [method start_frame] to clear the previous frame's data. Then, use [method set_frame_title]
-## to build up the title string (e.g., "AI: Patrolling | Target: Player") and [method in_frame] to 
+## to build up the title string (e.g., "AI: Patrolling | Target: Player") and [method in_frame] to
 ## log detailed information line by line. Finally, use [method end_frame] to indicate that the frame
 ## data is fully written.
 
@@ -24,7 +24,7 @@ class_name Logger extends Node
 ## If the print level is higher (more verbose) than [member print_level], then nothing will be
 ## output. Similarly, if the print level is higher than [member archive_level], the print will be
 ## lost, and will not appear in the output dump for [method error] calls.
-enum LogLevel {
+enum Level {
 	SILENT = 0, ## Mutes all prints. Not intended for use in [method print_at_level] calls.
 	ERROR = 1, ## Prints an error using [code]push_error[/code].
 	WARNING = 2, ## Prints a warning using [code]push_warning[/code].
@@ -45,18 +45,21 @@ enum LogType {
 ## fail if there are multiple loggers with the same id.
 ## [br][br]
 ## If left blank, will be set automatically based on the parent's path in the scene tree.
+## If you are attaching loggers to individual object instances, then leave this blank to avoid
+## a name collision!
 @export var id := ""
 
-## What [enum LogLevel] the module will print at. Messages more verbose than this won't be output.
-@export var print_level : LogLevel = LogLevel.SILENT
+## What [enum Level] the module will print at. Messages more verbose than this won't be output.
+@export var print_level : Log.Level = Log.Level.VERBOSE
 
-## What [enum LogLevel] the module will archive. Messages more verbose than this won't appear in error dumps.
-@export var archive_level : LogLevel = LogLevel.DEBUG
+## What [enum Level] the module will archive. Messages more verbose than this won't appear in error dumps.
+@export var archive_level : Log.Level = Log.Level.VERBOSE
 
 ## Settings controlling the format and appearance of log messages.
 @export var settings: PrintSettings
 
 # Internal variables
+var _initialized := false
 var _log_type : LogType = LogType.OBJECT
 var _console = null
 
@@ -70,23 +73,27 @@ var _has_frame_changes := false
 # Register with the Print singleton when ready.
 # If this logger is a child of an existing node, will update the ID accordingly.
 func _ready():
-	if id == "":
+	if !_initialized:
+		_second_init()
+	if id == &"":
 		id = str(get_parent().get_path()).replace("/root/", "")
 	Print._register_logger(self)
 	start()
 
 
 # Set up everything that we can't do in an _init call (because Godot calls _init on nodes in the scene tree).
-# Returns self so you can chain Logger.new.init(...)
-func _second_init(id := &"", print_level := LogLevel.VERBOSE, archive_level := LogLevel.VERBOSE,
-		log_type := LogType.OBJECT, custom_settings: PrintSettings = null) -> Logger:
+# Returns self so you can chain Log.new.init(...)
+func _second_init(id := &"", print_level := Log.Level.VERBOSE, archive_level := Log.Level.VERBOSE,
+		log_type := LogType.OBJECT, custom_settings: PrintSettings = null) -> Log:
 	self.id = id
-	self.name = str(id)
+	if log_type == LogType.SINGLETON:
+		self.name = str(id)
 	self.print_level = print_level
 	self.archive_level = archive_level
 	self._log_type = log_type
 	self.settings = custom_settings if custom_settings else Print.settings
-	
+	self._initialized = true
+
 	# Initialize our history buffers
 	_log_history = RingBuffer.new(settings.max_log_entries)
 	_frame_history = RingBuffer.new(settings.max_frames)
@@ -95,8 +102,10 @@ func _second_init(id := &"", print_level := LogLevel.VERBOSE, archive_level := L
 
 ## Clears the message and frame history for this logger instance.
 func start():
-	_log_history.clear()
-	_frame_history.clear()
+	if _log_history:
+		_log_history.clear()
+	if _frame_history:
+		_frame_history.clear()
 	_current_frame = null
 	_has_frame_changes = false
 
@@ -114,9 +123,9 @@ func assert_that(is_true, message := ""):
 ## If you just want to print the current error, set [param dump_error] to [code]false[/code].
 func error(message: String, dump_error := true):
 	Print.error_count += 1
-	var entry = _log(LogLevel.ERROR, message)
-	
-	if print_level >= LogLevel.ERROR:
+	var entry = _log(Log.Level.ERROR, message)
+
+	if print_level >= Log.Level.ERROR:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		print_rich(formatted)
@@ -129,9 +138,9 @@ func error(message: String, dump_error := true):
 ## create an error dump. If you want to dump, set [param dump_warning] to true.
 func warning(message: String, dump_warning := false):
 	Print.warning_count += 1
-	var entry = _log(LogLevel.WARNING, message)
-	
-	if print_level >= LogLevel.WARNING:
+	var entry = _log(Log.Level.WARNING, message)
+
+	if print_level >= Log.Level.WARNING:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		print_rich(formatted)
@@ -142,9 +151,9 @@ func warning(message: String, dump_warning := false):
 
 ## Prints an INFO message to screen and console.
 func info(message: String):
-	var entry = _log(LogLevel.INFO, message)
-	
-	if print_level >= LogLevel.INFO:
+	var entry = _log(Log.Level.INFO, message)
+
+	if print_level >= Log.Level.INFO:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		print_rich(formatted)
@@ -152,9 +161,9 @@ func info(message: String):
 
 ## Prints a DEBUG message to screen and console.
 func debug(message: String):
-	var entry = _log(LogLevel.DEBUG, message)
-	
-	if print_level >= LogLevel.DEBUG:
+	var entry = _log(Log.Level.DEBUG, message)
+
+	if print_level >= Log.Level.DEBUG:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		print_rich(formatted)
@@ -162,9 +171,9 @@ func debug(message: String):
 
 ## Prints a VERBOSE message to screen and console.
 func verbose(message: String):
-	var entry = _log(LogLevel.VERBOSE, message)
-	
-	if print_level >= LogLevel.VERBOSE:
+	var entry = _log(Log.Level.VERBOSE, message)
+
+	if print_level >= Log.Level.VERBOSE:
 		var formatted = entry.format(settings)
 		_print_console(formatted)
 		print_rich(formatted)
@@ -174,7 +183,7 @@ func verbose(message: String):
 ## This should be called at the start of whatever process you're tracking
 ## (usually at the start of a frame, hence the name).
 ## Any title you give will be displayed at the start of the frame. If no title
-## is given, the Logger ID will be used instead.
+## is given, the Log ID will be used instead.
 func start_frame(title := ""):
 	if title == "":
 		_current_frame = FrameLog.new(id)
@@ -231,17 +240,17 @@ func get_frame(prepend_title := false) -> String:
 ## Prints a message at a specific level. Equivalent to calling [method error], [method info], etc.
 func print_at_level(message: String, level):
 	match level:
-		LogLevel.ERROR:
+		Log.Level.ERROR:
 			error(message)
-		LogLevel.WARNING:
+		Log.Level.WARNING:
 			warning(message)
-		LogLevel.INFO:
+		Log.Level.INFO:
 			info(message)
-		LogLevel.DEBUG:
+		Log.Level.DEBUG:
 			debug(message)
-		LogLevel.VERBOSE:
+		Log.Level.VERBOSE:
 			verbose(message)
-		LogLevel.SILENT:
+		Log.Level.SILENT:
 			error("Attempted to print at ''SILENT'' logging level.")
 		_:
 			error("Attempted to print at an invalid logging level.")
@@ -257,7 +266,7 @@ func to_dict() -> Dictionary:
 
 
 # Helper function to create and store a log entry
-func _log(level: LogLevel, message: String) -> LogEntry:
+func _log(level: Log.Level, message: String) -> LogEntry:
 	var entry = LogEntry.new(level, id, message, _current_frame)
 	if archive_level >= level:
 		_log_history.push(entry)
@@ -270,4 +279,4 @@ func _exit_tree():
 
 func _print_console(message: String):
 	if _console:
-		_console.Text.append_text(message + "\n")
+		_console.print_line(message)
