@@ -15,7 +15,7 @@ extends EditorPlugin
 const PluginName := "Print"
 
 ## Path to the Print singleton scene
-const PluginPath := "res://addons/sdg-print/print/print.gd"
+const PluginPath := "res://addons/sdg-print/print/print.tscn"
 
 ## Path to the editor tab scene for viewing dumps
 const PRINT_EDITOR_TAB = preload("uid://cvb0f4ora2d6b") # print_editor_tab.tscn
@@ -89,7 +89,7 @@ func load_latest_dump(grab_focus := true) -> void:
 	if loading_dump:
 		return
 
-	var absolute_path = ProjectSettings.globalize_path(ErrorDump.LATEST_DUMP_PATH)
+	var absolute_path = ProjectSettings.globalize_path(ErrorDump.get_latest_dump_path())
 
 	if FileAccess.file_exists(absolute_path):
 		loading_dump = true

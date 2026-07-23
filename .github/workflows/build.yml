@@ -1,0 +1,125 @@
+name: Build GDExtension
+
+# Builds the SDG Print native library for every supported platform on GitHub's
+# runners, so adopters get prebuilt binaries without owning a Mac or a Linux box.
+#
+# - Pull request: builds all platforms to validate compilation and uploads the
+#   libraries as downloadable artifacts. Nothing is committed.
+# - Manual run (Actions tab -> Build GDExtension -> Run workflow): same, and if
+#   you tick "commit_binaries", the freshly built libraries are committed back
+#   into bin/ on the branch you ran from.
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      commit_binaries:
+        description: "Commit the built binaries into bin/ on this branch"
+        type: boolean
+        default: false
+
+# godot-cpp commit that bundles the Godot 4.7 API (matches compatibility_minimum
+# in bin/sdg_print.gdextension). Bump this in lockstep with the engine version:
+# a newer godot-cpp may target a newer API and break 4.7 compatibility.
+env:
+  GODOT_CPP_REF: ba0edfed90512ec64aba51d4295a3e7e30112f86
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ubuntu-22.04 links against an older glibc, so the .so runs on more
+          # distros than a latest-Ubuntu build would.
+          - { name: linux,   os: ubuntu-22.04,   platform: linux,   arch: x86_64,    lib_glob: "*.so" }
+          - { name: windows, os: windows-latest, platform: windows, arch: x86_64,    lib_glob: "*.dll" }
+          # arch=universal produces one framework for both Intel and Apple Silicon.
+          - { name: macos,   os: macos-latest,   platform: macos,   arch: universal, lib_glob: "*.framework" }
+    steps:
+      - name: Checkout addon
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install SCons
+        run: pip install "scons>=4.0"
+
+      - name: Cache godot-cpp
+        id: cache-godot-cpp
+        uses: actions/cache@v4
+        with:
+          # Caches the pinned checkout plus its compiled bindings (all targets),
+          # so only our own src/ recompiles on later runs. Keyed on the pinned
+          # commit, so bumping GODOT_CPP_REF forces a clean rebuild.
+          path: godot-cpp
+          key: ${{ matrix.name }}-godot-cpp-${{ env.GODOT_CPP_REF }}
+
+      - name: Fetch godot-cpp (pinned)
+        if: steps.cache-godot-cpp.outputs.cache-hit != 'true'
+        run: |
+          git init godot-cpp
+          cd godot-cpp
+          git remote add origin https://github.com/godotengine/godot-cpp.git
+          git fetch --depth 1 origin "$GODOT_CPP_REF"
+          git checkout FETCH_HEAD
+
+      - name: Build editor, template_debug, template_release
+        run: |
+          for target in editor template_debug template_release; do
+            echo "::group::$target"
+            scons platform=${{ matrix.platform }} arch=${{ matrix.arch }} target="$target" -j4
+            echo "::endgroup::"
+          done
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.name }}
+          path: bin/${{ matrix.lib_glob }}
+          if-no-files-found: error
+
+  commit:
+    name: Commit binaries
+    needs: build
+    # Only on an explicit manual run with the checkbox ticked.
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.commit_binaries == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout addon
+        uses: actions/checkout@v4
+
+      - name: Download all binaries into bin/
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binaries-*
+          path: bin
+          merge-multiple: true
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add bin
+          if git diff --cached --quiet; then
+            echo "No binary changes to commit."
+          else
+            # GITHUB_TOKEN commits don't retrigger workflows; [skip ci] is belt-and-braces.
+            git commit -m "CI: update prebuilt binaries [skip ci]"
+            git push
+          fi

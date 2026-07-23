@@ -125,7 +125,7 @@ func _setup_entry_item(item: TreeItem, entry: LogEntry) -> void:
 	item.set_text(Columns.TIMESTAMP, format_time(entry.timestamp))
 	item.set_text(Columns.MODULE, entry.module)
 	item.set_text(Columns.MESSAGE, entry.message)
-	item.set_text(Columns.LEVEL, Log.Level.keys()[entry.level])
+	item.set_text(Columns.LEVEL, Log.level_to_string(entry.level))
 	
 	# Color code based on log level
 	var level_color = get_level_color(entry.level)

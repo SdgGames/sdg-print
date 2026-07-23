@@ -1,0 +1,24 @@
+# godot-cpp checkout — only needed to (re)build. Users of the addon rely on the
+# committed bin/*.dll instead, so this large tree stays local.
+godot-cpp/
+
+# SCons build artifacts
+.sconsign.dblite
+src/*.obj
+src/*.os
+src/*.o
+
+# Linker byproducts (the .dll is committed; these are not needed to load it)
+bin/*.exp
+bin/*.lib
+bin/*.pdb
+
+# Windows extension hot-reload copies: while the editor holds the .dll open,
+# Godot copies it to a ~-prefixed name (and leaves ~...TMP scratch files) so a
+# rebuild can proceed. Purely local runtime junk — never commit.
+bin/~*
+*.TMP
+*.tmp
+
+# NOTE: bin/*.dll and bin/*.gdextension(.uid) are intentionally NOT ignored —
+# committing them means adopters don't need a C++ toolchain to use the addon.

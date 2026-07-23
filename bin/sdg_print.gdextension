@@ -1,0 +1,22 @@
+[configuration]
+
+entry_symbol = "sdg_print_library_init"
+compatibility_minimum = "4.7"
+reloadable = true
+
+[icons]
+
+Log = "res://addons/sdg-print/logger/logger_icon.svg"
+SDG_Print = "res://addons/sdg-print/print/print_icon.svg"
+
+[libraries]
+
+windows.editor.x86_64 = "res://addons/sdg-print/bin/libsdg_print.windows.editor.x86_64.dll"
+windows.template_debug.x86_64 = "res://addons/sdg-print/bin/libsdg_print.windows.template_debug.x86_64.dll"
+windows.template_release.x86_64 = "res://addons/sdg-print/bin/libsdg_print.windows.template_release.x86_64.dll"
+linux.editor.x86_64 = "res://addons/sdg-print/bin/libsdg_print.linux.editor.x86_64.so"
+linux.template_debug.x86_64 = "res://addons/sdg-print/bin/libsdg_print.linux.template_debug.x86_64.so"
+linux.template_release.x86_64 = "res://addons/sdg-print/bin/libsdg_print.linux.template_release.x86_64.so"
+macos.editor = "res://addons/sdg-print/bin/libsdg_print.macos.editor.framework"
+macos.template_debug = "res://addons/sdg-print/bin/libsdg_print.macos.template_debug.framework"
+macos.template_release = "res://addons/sdg-print/bin/libsdg_print.macos.template_release.framework"
