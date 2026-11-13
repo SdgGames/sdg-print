@@ -62,7 +62,8 @@ public:
 	String get_frame_from(const Variant &p_identifier, bool p_prepend_title = false);
 	String get_frame_title_from(const Variant &p_identifier);
 
-	// Dumps all logger data to disk, then resets all loggers.
+	// Dumps all logger data to disk, then resets all loggers. Does nothing
+	// when dumps are turned off (debug/logging/dumps/enabled).
 	void flush_logs(const String &p_context = String(), int p_reason = 0 /* ErrorDump::DUMP_REASON_FLUSH */);
 
 	// Pass-throughs to the Global logger.
@@ -77,7 +78,8 @@ public:
 	void start_all();
 	Array list_loggers();
 
-	// Console hooks.
+	// Debugging helpers, meant to be typed into an in-game developer console
+	// that can call methods of autoloads (Print._dump_loggers() and so on).
 	void _dump_loggers();
 	void _delete_dumps();
 	void _test_error();
@@ -91,7 +93,6 @@ public:
 	Log::LogType _get_type(const Variant &p_identifier);
 
 	virtual void _enter_tree() override;
-	virtual void _ready() override;
 	virtual void _exit_tree() override;
 	void _notification(int p_what);
 };

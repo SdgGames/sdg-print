@@ -19,10 +19,13 @@ class ErrorDump : public RefCounted {
 	GDCLASS(ErrorDump, RefCounted)
 
 public:
-	// File used by the dump viewer. Only generated when running from the editor.
-	// (GDScript exposed this as the constant LATEST_DUMP_PATH; native classes
-	// can't bind string constants, so callers use get_latest_dump_path().)
-	static const char *LATEST_DUMP_PATH;
+	// Project settings for dumps, as names below PrintSettings::SETTINGS_PATH
+	// ("debug/logging/"). Registered by PrintSettings::_register_settings().
+	static const char *ENABLED_SETTING; // dumps/enabled
+	static const char *DIRECTORY_SETTING; // dumps/directory
+	// Their defaults: dumps are written, into this folder.
+	static constexpr bool DEFAULT_ENABLED = true;
+	static const char *DEFAULT_DIRECTORY;
 
 	// Enum ordering is load-bearing: comparisons like `reason >= APP_CLOSE`
 	// gate the editor mirror/pause. Prefixed to dodge the Windows ERROR macro;
@@ -45,9 +48,21 @@ protected:
 	static void _bind_methods();
 
 public:
+	// False when the project turned dumps off (debug/logging/dumps/enabled):
+	// then no dump file or folder is created, written or cleaned up.
+	static bool is_enabled();
+
+	// The folder dump files are kept in (debug/logging/dumps/directory),
+	// without a trailing slash. It is created when the first dump is saved.
+	static String get_dumps_directory();
+
+	// File used by the dump viewer, inside the dumps directory. Only generated
+	// when running from the editor. (GDScript exposed this as the constant
+	// LATEST_DUMP_PATH; native classes can't bind string constants.)
 	static String get_latest_dump_path();
 
 	// Saves a dump to the current session's dump file (creating it if needed).
+	// Returns ERR_UNAVAILABLE without touching the disk when dumps are off.
 	static Error save_dump(const Dictionary &p_logger_data, int p_reason = DUMP_REASON_UNSPECIFIED, const String &p_context = String());
 
 	// Shows the crash-report window with the given session file loaded.
@@ -56,10 +71,10 @@ public:
 	// Loads and validates all dumps from a file, skipping any that fail.
 	static TypedArray<DumpData> load_dumps(const String &p_file_path);
 
-	// Lists all dump files in the dumps directory.
+	// Lists all dump files in the dumps directory (none while it is missing).
 	static TypedArray<String> list_dump_files();
 
-	// Keeps only the newest p_keep_count dump files.
+	// Keeps only the newest p_keep_count dump files; a negative count keeps all.
 	static void cleanup_old_dumps(int p_keep_count = 10);
 
 	// Builds the standardized dump dictionary with metadata.

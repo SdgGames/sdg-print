@@ -91,6 +91,12 @@ public:
 	// exist. Called automatically by the Print singleton during initialization.
 	static void _register_settings();
 
+	// Reads a project setting the way the engine reads its own: an override
+	// for a feature tag of the running build ("some/setting.web") wins over the
+	// base value, which ProjectSettings.get_setting() would ignore. Returns
+	// p_default while the setting does not exist (before _register_settings()).
+	static Variant get_project_setting(const String &p_name, const Variant &p_default);
+
 	// Creates a new PrintSettings instance with values from ProjectSettings.
 	static Ref<PrintSettings> from_project_settings();
 

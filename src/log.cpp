@@ -119,10 +119,6 @@ Log *Log::_second_init(const String &p_id, int p_print_level, int p_archive_leve
 	return this;
 }
 
-void Log::set_console(Object *p_console) {
-	_console = p_console ? p_console->get_instance_id() : ObjectID();
-}
-
 void Log::start() {
 	if (_log_history.is_valid()) {
 		_log_history->clear();
@@ -152,7 +148,6 @@ void Log::error(const String &p_message, bool p_dump_error) {
 
 	if (print_level >= LEVEL_ERROR) {
 		String formatted = entry->format(settings);
-		_print_console(formatted);
 		UtilityFunctions::print_rich(formatted);
 	}
 	if (p_dump_error && print) {
@@ -170,7 +165,6 @@ void Log::warning(const String &p_message, bool p_dump_warning) {
 
 	if (print_level >= LEVEL_WARNING) {
 		String formatted = entry->format(settings);
-		_print_console(formatted);
 		UtilityFunctions::print_rich(formatted);
 	}
 	if (p_dump_warning && print) {
@@ -184,7 +178,6 @@ void Log::info(const String &p_message) {
 
 	if (print_level >= LEVEL_INFO) {
 		String formatted = entry->format(settings);
-		_print_console(formatted);
 		UtilityFunctions::print_rich(formatted);
 	}
 }
@@ -194,7 +187,6 @@ void Log::debug(const String &p_message) {
 
 	if (print_level >= LEVEL_DEBUG) {
 		String formatted = entry->format(settings);
-		_print_console(formatted);
 		UtilityFunctions::print_rich(formatted);
 	}
 }
@@ -204,7 +196,6 @@ void Log::verbose(const String &p_message) {
 
 	if (print_level >= LEVEL_VERBOSE) {
 		String formatted = entry->format(settings);
-		_print_console(formatted);
 		UtilityFunctions::print_rich(formatted);
 	}
 }
@@ -296,15 +287,6 @@ Ref<LogEntry> Log::_log(int p_level, const String &p_message) {
 		_log_history->push(entry);
 	}
 	return entry;
-}
-
-void Log::_print_console(const String &p_message) {
-	if (_console.is_valid()) {
-		Object *console = ObjectDB::get_instance(_console);
-		if (console) {
-			console->call("print_line", p_message);
-		}
-	}
 }
 
 String Log::level_to_string(int p_level) {

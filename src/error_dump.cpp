@@ -1,5 +1,6 @@
 #include "error_dump.h"
 
+#include "print_settings.h"
 #include "sdg_print.h"
 
 #include <godot_cpp/classes/control.hpp>
@@ -19,7 +20,13 @@
 
 using namespace godot;
 
-const char *ErrorDump::LATEST_DUMP_PATH = "user://dumps/latest_dump.json";
+const char *ErrorDump::ENABLED_SETTING = "dumps/enabled";
+const char *ErrorDump::DIRECTORY_SETTING = "dumps/directory";
+const char *ErrorDump::DEFAULT_DIRECTORY = "user://dumps";
+
+// Name of the file the editor mirrors a session's dumps into, for the dump
+// viewer. It lives in the dumps directory.
+static const char *LATEST_DUMP_FILE = "latest_dump.json";
 
 // Order must match the DumpReason enum values (DumpReason.keys()[reason]).
 static const char *DUMP_REASON_KEYS[] = {
@@ -28,6 +35,8 @@ static const char *DUMP_REASON_KEYS[] = {
 static const int DUMP_REASON_KEY_COUNT = sizeof(DUMP_REASON_KEYS) / sizeof(DUMP_REASON_KEYS[0]);
 
 void ErrorDump::_bind_methods() {
+	ClassDB::bind_static_method("ErrorDump", D_METHOD("is_enabled"), &ErrorDump::is_enabled);
+	ClassDB::bind_static_method("ErrorDump", D_METHOD("get_dumps_directory"), &ErrorDump::get_dumps_directory);
 	ClassDB::bind_static_method("ErrorDump", D_METHOD("get_latest_dump_path"), &ErrorDump::get_latest_dump_path);
 	ClassDB::bind_static_method("ErrorDump", D_METHOD("save_dump", "logger_data", "reason", "context"), &ErrorDump::save_dump, DEFVAL((int)DUMP_REASON_UNSPECIFIED), DEFVAL(String()));
 	ClassDB::bind_static_method("ErrorDump", D_METHOD("show_debug_window", "session_path"), &ErrorDump::show_debug_window);
@@ -44,11 +53,32 @@ void ErrorDump::_bind_methods() {
 	ClassDB::bind_integer_constant(get_class_static(), "DumpReason", "UNSPECIFIED", DUMP_REASON_UNSPECIFIED);
 }
 
+bool ErrorDump::is_enabled() {
+	return PrintSettings::get_project_setting(String(PrintSettings::SETTINGS_PATH) + ENABLED_SETTING, DEFAULT_ENABLED);
+}
+
+String ErrorDump::get_dumps_directory() {
+	String directory = PrintSettings::get_project_setting(String(PrintSettings::SETTINGS_PATH) + DIRECTORY_SETTING, DEFAULT_DIRECTORY);
+	directory = directory.strip_edges();
+	// "user://dumps/" names the same folder as "user://dumps". A root such as
+	// "user://" keeps its slashes.
+	while (directory.ends_with("/") && !directory.ends_with("://")) {
+		directory = directory.left(directory.length() - 1);
+	}
+	if (directory.is_empty()) {
+		directory = DEFAULT_DIRECTORY;
+	}
+	return directory;
+}
+
 String ErrorDump::get_latest_dump_path() {
-	return String(LATEST_DUMP_PATH);
+	return get_dumps_directory().path_join(LATEST_DUMP_FILE);
 }
 
 Error ErrorDump::save_dump(const Dictionary &p_logger_data, int p_reason, const String &p_context) {
+	if (!is_enabled()) {
+		return ERR_UNAVAILABLE;
+	}
 	_ensure_dumps_directory();
 
 	// Create the dump dictionary once.
@@ -91,7 +121,7 @@ Error ErrorDump::save_dump(const Dictionary &p_logger_data, int p_reason, const 
 	if (OS::get_singleton()->has_feature("editor") && p_reason >= DUMP_REASON_APP_CLOSE) {
 		// Copy the entire session file to latest_dump.
 		Ref<FileAccess> session_file = FileAccess::open(session_path, FileAccess::READ);
-		Ref<FileAccess> latest_file = FileAccess::open(LATEST_DUMP_PATH, FileAccess::WRITE);
+		Ref<FileAccess> latest_file = FileAccess::open(get_latest_dump_path(), FileAccess::WRITE);
 
 		if (session_file.is_valid() && latest_file.is_valid()) {
 			latest_file->store_string(session_file->get_as_text());
@@ -199,16 +229,20 @@ TypedArray<DumpData> ErrorDump::load_dumps(const String &p_file_path) {
 }
 
 TypedArray<String> ErrorDump::list_dump_files() {
-	_ensure_dumps_directory();
-
 	TypedArray<String> files;
-	Ref<DirAccess> dir = DirAccess::open("user://dumps");
+	String directory = get_dumps_directory();
+	// Listing never creates the folder: only saving a dump does. A folder that
+	// does not exist yet holds no dumps.
+	if (!DirAccess::dir_exists_absolute(directory)) {
+		return files;
+	}
+	Ref<DirAccess> dir = DirAccess::open(directory);
 	if (dir.is_valid()) {
 		dir->list_dir_begin();
 		String file_name = dir->get_next();
 		while (!file_name.is_empty()) {
 			if (!dir->current_is_dir() && file_name.ends_with(".json")) {
-				files.append(String("user://dumps/") + file_name);
+				files.append(directory.path_join(file_name));
 			}
 			file_name = dir->get_next();
 		}
@@ -218,6 +252,9 @@ TypedArray<String> ErrorDump::list_dump_files() {
 }
 
 void ErrorDump::cleanup_old_dumps(int p_keep_count) {
+	if (p_keep_count < 0) {
+		return; // No limit (debug/logging/history/max_log_files = -1).
+	}
 	TypedArray<String> files = list_dump_files();
 	files.sort(); // Timestamp in filename ensures chronological order.
 
@@ -225,12 +262,13 @@ void ErrorDump::cleanup_old_dumps(int p_keep_count) {
 		return;
 	}
 
+	Ref<DirAccess> dir = DirAccess::open(get_dumps_directory());
+	if (dir.is_null()) {
+		return;
+	}
 	for (int64_t i = 0; i < files.size() - p_keep_count; i++) {
 		String file_path = files[i];
-		Ref<DirAccess> dir = DirAccess::open("user://dumps");
-		if (dir.is_valid()) {
-			dir->remove(file_path);
-		}
+		dir->remove(file_path);
 	}
 }
 
@@ -259,7 +297,7 @@ String ErrorDump::_generate_session_file_path() {
 			String::num_int64(datetime["hour"]).pad_zeros(2) +
 			String::num_int64(datetime["minute"]).pad_zeros(2) +
 			String::num_int64(datetime["second"]).pad_zeros(2) + String(".json");
-	return String("user://dumps/") + file_name;
+	return get_dumps_directory().path_join(file_name);
 }
 
 // Add this dump to the current file with the appropriate array punctuation.
@@ -276,8 +314,8 @@ void ErrorDump::_append_to_file(const Ref<FileAccess> &p_file, const Dictionary 
 
 // Ensures the dumps directory exists.
 void ErrorDump::_ensure_dumps_directory() {
-	Ref<DirAccess> dir = DirAccess::open("user://");
-	if (dir.is_valid() && !dir->dir_exists("dumps")) {
-		dir->make_dir("dumps");
+	String directory = get_dumps_directory();
+	if (!DirAccess::dir_exists_absolute(directory)) {
+		DirAccess::make_dir_recursive_absolute(directory);
 	}
 }
