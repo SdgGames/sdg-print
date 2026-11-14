@@ -97,6 +97,12 @@ its own library; build on (or cross-compile for) every platform you export to.
   `ErrorDump.get_dumps_directory()` report the values in use.
 - **The dumps folder is created by the first dump**, no longer at startup.
   Listing dumps (`ErrorDump.list_dump_files()`) never creates it.
+- **Only dump files are listed and cleaned up.** `ErrorDump.list_dump_files()`,
+  the cleanup at startup (`history/max_log_files`) and `Print._delete_dumps()`
+  take the session files (`error_dump_<date>_<time>.json`) and
+  `latest_dump.json` only. Before, every `*.json` in the folder counted as a
+  dump, so a dumps folder shared with the game's own JSON files (for example
+  `user://`) lost those files at the next start.
 - **`debug/logging/*` settings honour feature-tag overrides.** They are read
   with `ProjectSettings.get_setting_with_override()`, so a key such as
   `debug/logging/dumps/enabled.web=false` applies to builds that have that

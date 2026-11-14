@@ -28,6 +28,18 @@ const char *ErrorDump::DEFAULT_DIRECTORY = "user://dumps";
 // viewer. It lives in the dumps directory.
 static const char *LATEST_DUMP_FILE = "latest_dump.json";
 
+// A session's dump file is named error_dump_<date>_<time>.json
+// (_generate_session_file_path). These names, and LATEST_DUMP_FILE, are the
+// dump files: the dumps directory is a setting and may hold the game's own
+// files too, which are never listed or cleaned up.
+static const char *SESSION_FILE_PREFIX = "error_dump_";
+static const char *DUMP_FILE_EXTENSION = ".json";
+
+static bool _is_dump_file_name(const String &p_file_name) {
+	return p_file_name == LATEST_DUMP_FILE ||
+			(p_file_name.begins_with(SESSION_FILE_PREFIX) && p_file_name.ends_with(DUMP_FILE_EXTENSION));
+}
+
 // Order must match the DumpReason enum values (DumpReason.keys()[reason]).
 static const char *DUMP_REASON_KEYS[] = {
 	"FLUSH", "MANUAL", "APP_CLOSE", "WARNING", "ERROR", "UNSPECIFIED"
@@ -241,7 +253,7 @@ TypedArray<String> ErrorDump::list_dump_files() {
 		dir->list_dir_begin();
 		String file_name = dir->get_next();
 		while (!file_name.is_empty()) {
-			if (!dir->current_is_dir() && file_name.ends_with(".json")) {
+			if (!dir->current_is_dir() && _is_dump_file_name(file_name)) {
 				files.append(directory.path_join(file_name));
 			}
 			file_name = dir->get_next();
@@ -290,13 +302,13 @@ Dictionary ErrorDump::create_dump_dict(const Dictionary &p_logger_data, int p_re
 // Generates a dump file path for the current game session.
 String ErrorDump::_generate_session_file_path() {
 	Dictionary datetime = Time::get_singleton()->get_datetime_dict_from_system();
-	String file_name = String("error_dump_") +
+	String file_name = String(SESSION_FILE_PREFIX) +
 			String::num_int64(datetime["year"]) +
 			String::num_int64(datetime["month"]).pad_zeros(2) +
 			String::num_int64(datetime["day"]).pad_zeros(2) + String("_") +
 			String::num_int64(datetime["hour"]).pad_zeros(2) +
 			String::num_int64(datetime["minute"]).pad_zeros(2) +
-			String::num_int64(datetime["second"]).pad_zeros(2) + String(".json");
+			String::num_int64(datetime["second"]).pad_zeros(2) + String(DUMP_FILE_EXTENSION);
 	return get_dumps_directory().path_join(file_name);
 }
 

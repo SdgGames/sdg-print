@@ -71,10 +71,13 @@ public:
 	// Loads and validates all dumps from a file, skipping any that fail.
 	static TypedArray<DumpData> load_dumps(const String &p_file_path);
 
-	// Lists all dump files in the dumps directory (none while it is missing).
+	// Lists the dump files in the dumps directory (none while it is missing):
+	// the session files (error_dump_<date>_<time>.json) and the editor's
+	// latest_dump.json. Other files there are not dumps and are never listed.
 	static TypedArray<String> list_dump_files();
 
-	// Keeps only the newest p_keep_count dump files; a negative count keeps all.
+	// Keeps only the newest p_keep_count dump files (as listed above); a
+	// negative count keeps all. Other files in the directory are left alone.
 	static void cleanup_old_dumps(int p_keep_count = 10);
 
 	// Builds the standardized dump dictionary with metadata.
