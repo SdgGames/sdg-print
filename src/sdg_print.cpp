@@ -89,8 +89,11 @@ void SDG_Print::_enter_tree() {
 	// Initialize global settings.
 	settings = PrintSettings::from_project_settings();
 
-	// Clean up extra files from previous sessions.
-	ErrorDump::cleanup_old_dumps(settings->get_max_log_files());
+	// Clean up extra files from previous sessions. With dumps turned off the
+	// dumps folder is left alone entirely.
+	if (ErrorDump::is_enabled()) {
+		ErrorDump::cleanup_old_dumps(settings->get_max_log_files());
+	}
 
 	Ref<LoggerRegistry> registry = LoggerRegistry::load_from_project_settings();
 
@@ -117,29 +120,6 @@ void SDG_Print::_enter_tree() {
 	}
 }
 
-// Connect to the Console (if it is present).
-void SDG_Print::_ready() {
-	if (Engine::get_singleton()->is_editor_hint()) {
-		return;
-	}
-	if (has_node(NodePath("/root/Console"))) {
-		Node *console = get_node<Node>(NodePath("/root/Console"));
-		_global_logger->set_console(console);
-		console->call("add_command", "Print.silence_all", Callable(this, "silence_all"), 0, 0,
-				"Disables all printing to this console and the Output window or external console");
-		console->call("add_command", "Print.silence_non_error_logs", Callable(this, "silence_non_error_printing"), 0, 0,
-				"Disables all non-error printing.");
-		console->call("add_command", "Print.dump_all_loggers", Callable(this, "_dump_loggers"), 0, 0,
-				"Dumps all of the prints stored in all of the loggers. Dumps to file, but also copies to the clipboard.");
-		console->call("add_command", "Print.list_loggers", Callable(this, "list_loggers"), 0, 0,
-				"Prints the names of all of the loggers to the console.");
-		console->call("add_command", "Print.clear_all_dumps", Callable(this, "_delete_dumps"), 0, 0,
-				"Deletes all of the dump files in user://dumps.");
-		console->call("add_command", "Print.push_test_error", Callable(this, "_test_error"), 0, 0,
-				"Pushes an error to the console and dump file. Logs at each level first, ending with the error.");
-	}
-}
-
 void SDG_Print::_exit_tree() {
 	if (singleton == this) {
 		singleton = nullptr;
@@ -147,10 +127,13 @@ void SDG_Print::_exit_tree() {
 }
 
 // Dump loggers when we detect that the application is exiting.
-// Don't dump on application close in release builds.
+// Don't dump on application close in release builds, or with dumps turned off.
 void SDG_Print::_notification(int p_what) {
 	if (p_what == NOTIFICATION_WM_CLOSE_REQUEST) {
 		if (Engine::get_singleton()->is_editor_hint() || singleton != this) {
+			return;
+		}
+		if (!ErrorDump::is_enabled()) {
 			return;
 		}
 		if (OS::get_singleton()->has_feature("editor") || OS::get_singleton()->is_debug_build()) {
@@ -230,6 +213,13 @@ String SDG_Print::get_frame_title_from(const Variant &p_identifier) {
 }
 
 void SDG_Print::flush_logs(const String &p_context, int p_reason) {
+	// With dumps turned off (debug/logging/dumps/enabled) there is no file to
+	// write, and the loggers keep their history: errors, warnings, the close
+	// request and manual dumps all come through here.
+	if (!ErrorDump::is_enabled()) {
+		return;
+	}
+
 	// Logging an info will also allow us to fold lower quality logs at the
 	// start of the dump.
 	_print_logger->info("Dumping all loggers to file.");
@@ -336,9 +326,6 @@ void SDG_Print::_register_logger(Log *p_logger) {
 	_logs[log_id] = p_logger;
 	_print_logger->debug(String("Registered ") + log_id + String(" logger of type ") +
 			log_type_key(p_logger->get_log_type()).to_camel_case() + String("."));
-	if (has_node(NodePath("/root/Console"))) {
-		p_logger->set_console(get_node<Node>(NodePath("/root/Console")));
-	}
 }
 
 void SDG_Print::_unregister_logger(Log *p_logger) {

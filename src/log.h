@@ -12,9 +12,8 @@ namespace godot {
 class LogEntry;
 
 // A logging helper for a module or individual object. Prints to standard
-// output (and the in-game console if present) subject to print_level, and
-// silently archives history subject to archive_level so the full picture is
-// available when an error dump fires.
+// output subject to print_level, and silently archives history subject to
+// archive_level so the full picture is available when an error dump fires.
 class Log : public Node {
 	GDCLASS(Log, Node)
 
@@ -49,7 +48,6 @@ private:
 
 	bool _initialized = false;
 	LogType _log_type = LOG_TYPE_OBJECT;
-	ObjectID _console;
 
 	Ref<RingBuffer> _log_history;
 	Ref<RingBuffer> _frame_history;
@@ -57,7 +55,6 @@ private:
 	bool _has_frame_changes = false;
 
 	Ref<LogEntry> _log(int p_level, const String &p_message);
-	void _print_console(const String &p_message);
 
 protected:
 	static void _bind_methods();
@@ -73,7 +70,6 @@ public:
 	Ref<PrintSettings> get_settings() const { return settings; }
 
 	LogType get_log_type() const { return _log_type; }
-	void set_console(Object *p_console);
 
 	// Setup that can't happen in the constructor (mirrors GDScript's pattern of
 	// Godot calling _init for nodes in the scene tree). Returns self so calls

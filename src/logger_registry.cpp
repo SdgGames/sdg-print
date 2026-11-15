@@ -96,12 +96,12 @@ void LoggerRegistry::register_project_settings() {
 }
 
 Ref<LoggerRegistry> LoggerRegistry::load_from_project_settings() {
-	ProjectSettings *ps = ProjectSettings::get_singleton();
-	String registry_path = ps->get_setting(REGISTRY_PATH_SETTING, "");
+	// Read with feature-tag overrides, so a build can name another registry.
+	String registry_path = PrintSettings::get_project_setting(REGISTRY_PATH_SETTING, "");
 
 	// You need to create a resource to manage autoload loggers.
 	if (registry_path.is_empty()) {
-		if ((bool)ps->get_setting(REQUIRE_REGISTRY_SETTING, true)) {
+		if ((bool)PrintSettings::get_project_setting(REQUIRE_REGISTRY_SETTING, true)) {
 			ERR_PRINT(String("Please create a LoggerRegistry resource and add it to ") + REGISTRY_PATH_SETTING +
 					String(" in the Project Settings. If you don't want to create global loggers this way, disable ") +
 					REQUIRE_REGISTRY_SETTING + String(" instead."));

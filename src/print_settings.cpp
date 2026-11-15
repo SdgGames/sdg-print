@@ -1,5 +1,6 @@
 #include "print_settings.h"
 
+#include "error_dump.h"
 #include "log.h"
 #include "logger_registry.h"
 
@@ -107,6 +108,10 @@ void PrintSettings::_register_settings() {
 	register_setting("history/max_frames", Variant::INT, 100, PROPERTY_HINT_RANGE, "1,1000");
 	register_setting("history/max_log_files", Variant::INT, 15, PROPERTY_HINT_RANGE, "-1,100");
 
+	// Whether dump files are written at all, and the folder they go to.
+	register_setting(ErrorDump::ENABLED_SETTING, Variant::BOOL, ErrorDump::DEFAULT_ENABLED);
+	register_setting(ErrorDump::DIRECTORY_SETTING, Variant::STRING, ErrorDump::DEFAULT_DIRECTORY);
+
 	register_setting("format/show_timestamps", Variant::BOOL, true);
 	register_setting("format/show_module_names", Variant::BOOL, true);
 	register_setting("format/show_log_levels", Variant::BOOL, true);
@@ -132,30 +137,39 @@ Ref<PrintSettings> PrintSettings::from_project_settings() {
 	return settings;
 }
 
-void PrintSettings::load_from_project_settings() {
+Variant PrintSettings::get_project_setting(const String &p_name, const Variant &p_default) {
 	ProjectSettings *ps = ProjectSettings::get_singleton();
+	if (!ps->has_setting(p_name)) {
+		return p_default;
+	}
+	return ps->get_setting_with_override(p_name);
+}
+
+void PrintSettings::load_from_project_settings() {
 	String path = SETTINGS_PATH;
 
-	max_log_entries = ps->get_setting(path + String("history/max_log_entries"));
-	max_frames = ps->get_setting(path + String("history/max_frames"));
-	max_log_files = ps->get_setting(path + String("history/max_log_files"));
+	// Each value keeps its current one (the code default) while its setting is
+	// not registered.
+	max_log_entries = get_project_setting(path + String("history/max_log_entries"), max_log_entries);
+	max_frames = get_project_setting(path + String("history/max_frames"), max_frames);
+	max_log_files = get_project_setting(path + String("history/max_log_files"), max_log_files);
 
-	show_timestamps = ps->get_setting(path + String("format/show_timestamps"));
-	show_module_names = ps->get_setting(path + String("format/show_module_names"));
-	show_log_levels = ps->get_setting(path + String("format/show_log_levels"));
-	max_module_width = ps->get_setting(path + String("format/module_name_max_padding_width"));
+	show_timestamps = get_project_setting(path + String("format/show_timestamps"), show_timestamps);
+	show_module_names = get_project_setting(path + String("format/show_module_names"), show_module_names);
+	show_log_levels = get_project_setting(path + String("format/show_log_levels"), show_log_levels);
+	max_module_width = get_project_setting(path + String("format/module_name_max_padding_width"), max_module_width);
 
-	error_color = ps->get_setting(path + String("colors/error"));
-	warning_color = ps->get_setting(path + String("colors/warning"));
-	info_color = ps->get_setting(path + String("colors/info"));
-	debug_color = ps->get_setting(path + String("colors/debug"));
-	verbose_color = ps->get_setting(path + String("colors/verbose"));
-	timestamp_color = ps->get_setting(path + String("colors/timestamp"));
-	module_name_color = ps->get_setting(path + String("colors/module_name"));
-	frame_number_color = ps->get_setting(path + String("colors/frame_number"));
-	frame_data_color = ps->get_setting(path + String("colors/frame_data"));
-	default_message_color = ps->get_setting(path + String("colors/default_message"));
-	dump_header_color = ps->get_setting(path + String("colors/dump_header"));
+	error_color = get_project_setting(path + String("colors/error"), error_color);
+	warning_color = get_project_setting(path + String("colors/warning"), warning_color);
+	info_color = get_project_setting(path + String("colors/info"), info_color);
+	debug_color = get_project_setting(path + String("colors/debug"), debug_color);
+	verbose_color = get_project_setting(path + String("colors/verbose"), verbose_color);
+	timestamp_color = get_project_setting(path + String("colors/timestamp"), timestamp_color);
+	module_name_color = get_project_setting(path + String("colors/module_name"), module_name_color);
+	frame_number_color = get_project_setting(path + String("colors/frame_number"), frame_number_color);
+	frame_data_color = get_project_setting(path + String("colors/frame_data"), frame_data_color);
+	default_message_color = get_project_setting(path + String("colors/default_message"), default_message_color);
+	dump_header_color = get_project_setting(path + String("colors/dump_header"), dump_header_color);
 }
 
 Ref<PrintSettings> PrintSettings::duplicate_with_overrides(const Dictionary &p_overrides) {
